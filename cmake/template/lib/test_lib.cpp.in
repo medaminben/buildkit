@@ -1,16 +1,11 @@
 #include <${lib_ROOT_NAME}/${lib_NAME}/${lib_NAME}.h>
-// Include 3rd party headers
-#include <gtest/gtest.h>
-// Include system headers
-#include <iostream>
-#include <string>
 
-// Test case names must start with the name of the executable they are
-// contained in, in this case, "test_core"
-TEST (test_${lib_NAME}_Math, AnswerIsCorrect) {
+#include <gtest/gtest.h>
+
+TEST(test_${lib_NAME}_Math, AnswerIsCorrect) {
     EXPECT_EQ(${lib_ROOT_NAME}::${lib_NAME}::get_the_answer(), 42U);
 }
 
-TEST (test_${lib_NAME}_Math, MultiplyReturnsCorrectResults) {
-    EXPECT_EQ(36, ${lib_ROOT_NAME}::${lib_NAME}::multiply(6,6));
+TEST(test_${lib_NAME}_Math, MultiplyReturnsCorrectResults) {
+    EXPECT_EQ(36, ${lib_ROOT_NAME}::${lib_NAME}::multiply(6, 6));
 }

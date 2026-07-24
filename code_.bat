@@ -1,1 +1,0 @@
-echo | code . | exit /b
