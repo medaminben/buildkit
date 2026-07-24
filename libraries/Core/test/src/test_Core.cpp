@@ -1,5 +1,4 @@
 #include <UnitPro/Core/Core.h>
-
 #include <gtest/gtest.h>
 
 TEST(test_core_Math, AnswerIsCorrect) {

@@ -1,6 +1,6 @@
-#include "Core_impl.h"
-
 #include <UnitPro/Core/Core.h>
+
+#include "Core_impl.h"
 
 namespace UnitPro {
 namespace Core {

@@ -33,16 +33,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
       - name: Install JS tooling
         run: npm install
       - name: Commitlint (PR range)
         if: github.event_name == 'pull_request'
         run: |
+          git fetch --no-tags --depth=1 origin "${{ github.event.pull_request.base.sha }}"
           npx commitlint --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}" --verbose
       - name: CMake style check
         run: |
-          mapfile -t files < <(git ls-files '*.cmake' '**/CMakeLists.txt')
+          mapfile -t files < <(git ls-files '*.cmake' '*CMakeLists.txt')
           node scripts/check-cmake-style.mjs "${files[@]}"
       - name: Install clang-tidy and build tools
         run: sudo apt-get update && sudo apt-get install -y clang-tidy cmake g++
@@ -65,15 +65,17 @@ jobs:
           - compiler: gcc
             cc: gcc
             cxx: g++
+            packages: g++
           - compiler: clang
-            cc: clang
-            cxx: clang++
+            cc: clang-18
+            cxx: clang++-18
+            packages: clang-18
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ${{ matrix.cc }} ${{ matrix.cxx }} lcov
+          sudo apt-get install -y cmake lcov ${{ matrix.packages }}
       - name: Configure
         env:
           CC: ${{ matrix.cc }}
@@ -85,8 +87,7 @@ jobs:
         run: ctest --preset ci --output-on-failure
       - name: Coverage report
         if: matrix.compiler == 'gcc'
-        run: |
-          cmake --build --preset ci --target coverage
+        run: cmake --build --preset ci --target coverage
       - name: Upload coverage HTML
         if: matrix.compiler == 'gcc'
         uses: actions/upload-artifact@v4

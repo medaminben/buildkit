@@ -11,10 +11,10 @@ AlwaysBreakTemplateDeclarations: Yes
 BreakBeforeBraces: Attach
 ColumnLimit: 100
 DerivePointerAlignment: false
-IncludeBlocks: Regroup
+IncludeBlocks: Preserve
 IndentWidth: 4
 PointerAlignment: Left
-SortIncludes: CaseSensitive
+SortIncludes: Never
 SpaceAfterCStyleCast: false
 SpaceBeforeCpp11BracedList: true
 Standard: c++20
