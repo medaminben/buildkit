@@ -1,20 +1,13 @@
-//Include Project headrs
 #include <${lib_ROOT_NAME}/${lib_NAME}/${lib_NAME}.h>
 
-
-// Include 3rdparty headers
-
-// Include std headers
 #include <iostream>
 #include <string>
 
-using namespace ${lib_ROOT_NAME};
+int main() {
+    using namespace ${lib_ROOT_NAME};
 
-int main()
-{
-    std::cout << "Execution of Core Library" << std::endl;
-    std::cout <<  std::to_string(${lib_NAME}::multiply(6,6)) << std::endl;
-    std::cout << "The answer is " << ${lib_NAME}::get_the_answer() << std::endl;
-    std::cout << std::endl;
+    std::cout << "UnitPro ${lib_NAME} console sample\n";
+    std::cout << "6 * 6 = " << ${lib_NAME}::multiply(6, 6) << '\n';
+    std::cout << "The answer is " << ${lib_NAME}::get_the_answer() << '\n';
     return 0;
 }

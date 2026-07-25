@@ -1,16 +1,16 @@
-# common utilities for CMake,
-# Include this file as early as possible 
-# in the top CMakeLists.txt
+# Common project settings. Include early from the root CMakeLists.txt.
 
-# Use C++ 17 at least for nested  
-# namespaces and other new features 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# some custom functions and macros
+include(GNUInstallDirs)
 include(BuildUtils)
-include(libraryGenerator)  
-# Standard settings for build and import locations:
+include(LibraryGenerator)
 include(BuildLocation)
+include(CompilerWarnings)
+include(Coverage)
 
 if(BUILD_VERBOSE_OUTPUT)
     include(DebugUtils)
@@ -18,34 +18,22 @@ if(BUILD_VERBOSE_OUTPUT)
     dump_cmake_vars(configLogStart.log)
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX 
-    OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
-    # Activate all warnings 
-    # and consider warnings as errors
-    set(CMAKE_C_FLAGS 
-        "${CMAKE_CXX_FLAGS} -Wall -Werror"
-    )
-    set(CMAKE_CXX_FLAGS 
-        "${CMAKE_CXX_FLAGS} -Wall -Werror"
-    )
+if(ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+    if(CLANG_TIDY_EXE)
+        set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXE}")
+        message(STATUS "clang-tidy enabled: ${CLANG_TIDY_EXE}")
+    else()
+        message(WARNING "ENABLE_CLANG_TIDY is ON but clang-tidy was not found")
+    endif()
 endif()
 
-if(UNIX)
-    execute_process( COMMAND ping www.google.com -c 2 OUTPUT_QUIET RESULT_VARIABLE NO_CONNECTION)
-else()
-    execute_process(COMMAND ping www.google.com -n 2 OUTPUT_QUIET RESULT_VARIABLE NO_CONNECTION )
-endif()
-
-if(NO_CONNECTION EQUAL 0)
-    set(FETCHCONTENT_FULLY_DISCONNECTED OFF)
-    message("Fetch online mode... ")   
-else()
-    set(FETCHCONTENT_FULLY_DISCONNECTED ON)
-    message("Fetch offline mode: no intenet connection requires already populated _deps to build properly!" )
+# Prefer a local _deps cache over network; do not ping external hosts.
+if(DEFINED ENV{FETCHCONTENT_FULLY_DISCONNECTED})
+    set(FETCHCONTENT_FULLY_DISCONNECTED $ENV{FETCHCONTENT_FULLY_DISCONNECTED})
 endif()
 
 if(BUILD_TESTING)
-    print(BUILD_TESTING)
     include(CTest)
     enable_testing()
     include(TestUtils)
