@@ -15,7 +15,8 @@
 # commit SHA) and BUILDKIT_REPOSITORY may be set before including.
 #
 # Offline (BUILDKIT_OFFLINE or FETCHCONTENT_FULLY_DISCONNECTED ON, as a cache
-# entry, a variable or an environment variable), or a remote
+# entry, a variable or an environment variable; they are OR'ed, so
+# -DBUILDKIT_OFFLINE=OFF cannot undo an environment one), or a remote
 # that does not answer a 30 s probe: an already fetched copy is reused when its
 # stamped tag equals BUILDKIT_TAG ("tag vX.Y.Z, cached"); another tag is a
 # FATAL_ERROR naming both. Without a copy it is a FATAL_ERROR too, because

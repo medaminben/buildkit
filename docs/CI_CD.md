@@ -10,10 +10,17 @@ Jobs: `lint` (clang-format, CMake style, commitlint on PR commits), `build`
 (every compiler runs every preset: configure, build, `ctest --preset`) and
 `analysis` (clang-tidy and cppcheck, report only).
 
-`build` and `analysis` check buildkit out at `buildkit-ref` into `.buildkit` and
-export `BUILDKIT_DIR` for the configure, so lint, build and analysis use the same
-buildkit. A product needs no `BUILDKIT_TAG` default in its CMakeLists to build
-against an unreleased buildkit; it only sets `buildkit-ref`.
+`buildkit-ref` is empty by default. Then `build`, `analysis` and `codeql.yml` do not check
+buildkit out: the product's loader pin (`BUILDKIT_TAG`) is honoured, as on a developer
+machine, and `lint` uses `v2.0.0` for its config and scripts. When `buildkit-ref` is set, all
+jobs check buildkit out at that ref into `.buildkit` and `build`, `analysis` and CodeQL export
+`BUILDKIT_DIR` for the configure, so a product needs no `BUILDKIT_TAG` default to build against
+an unreleased buildkit.
+
+`.buildkit` is a checkout inside the product tree. A product must not `file(GLOB_RECURSE)`
+over `CMAKE_SOURCE_DIR` (or must exclude `.buildkit`).
+
+`format-exclude` and `configure-args` may span several lines; newlines count as spaces.
 
 | Input | Default | Meaning |
 |-------|---------|---------|
@@ -28,7 +35,7 @@ against an unreleased buildkit; it only sets `buildkit-ref`.
 | `static-analysis` | `true` | clang-tidy and cppcheck |
 | `coverage` | `false` | Also run the `coverage` preset (gcc) and upload the report |
 | `sanitizers` | `false` | Also run the `asan` preset (ASan and UBSan, gcc) |
-| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, `v2.0.0` | Source of buildkit: lint config and scripts, and `BUILDKIT_DIR` for the configure |
+| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, empty | Source of buildkit. Empty: the product's pin is used (lint falls back to `v2.0.0`). Set: checked out for lint, build and analysis, and exported as `BUILDKIT_DIR` |
 
 Precedence of the lint switches: `lint: false` wins and disables everything, whatever
 `lint-format`, `lint-cmake` and `lint-commits` say. With `lint: true` each single input
@@ -80,7 +87,7 @@ scanning enabled.
 | `preset` | `default` | Preset built for the analysis |
 | `apt-packages` | empty | Extra apt packages |
 | `configure-args` | empty | Arguments for `cmake --preset`, split at whitespace |
-| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, `v2.0.0` | Buildkit is checked out into `.buildkit` and exported as `BUILDKIT_DIR` |
+| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, empty | Set: buildkit is checked out into `.buildkit` and exported as `BUILDKIT_DIR`; empty: the product's pin is used |
 
 ```yaml
 jobs:

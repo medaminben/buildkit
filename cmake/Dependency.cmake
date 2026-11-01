@@ -20,7 +20,8 @@
 #    no probe ("<Name>: local source (<dir>)").
 # 3. Else, with fetch arguments, the source is probed unless BUILDKIT_OFFLINE
 #    or FETCHCONTENT_FULLY_DISCONNECTED is ON (cache, normal variable or
-#    environment variable of that name; a truthy value such as 1 or ON):
+#    environment variable of that name; a truthy value such as 1 or ON; the
+#    switches are OR'ed, so -DBUILDKIT_OFFLINE=OFF cannot undo an environment one):
 #      URL  a 1-byte ranged request (TIMEOUT 30, which also bounds connecting
 #           to a host that drops packets; if the server ignores the range and
 #           the whole file arrives within it, that is the download), then

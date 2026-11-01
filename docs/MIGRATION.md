@@ -21,17 +21,18 @@ loader and before the first `include()` of a module:
 list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 ```
 
-The loader appends buildkit's folders, so a module of the same name in the product
-wins with `PREPEND`. Without it, the product's copy of `GitVersion`, `InstallConfig` or
-`Coverage` would shadow buildkit's (delete them in step 2 instead), and a product
-`Common.cmake` is only found if no buildkit module has that name (buildkit has none).
+The loader appends buildkit's folders, so with `PREPEND` a module of the same name in
+the product wins. That is why a product copy of `GitVersion`, `InstallConfig` or `Coverage`
+shadows buildkit's: delete them in step 2. A product `Common.cmake` works either way,
+because buildkit ships no `Common.cmake` (a test guards this).
 
 On your machine set `BUILDKIT_DIR` to the buildkit checkout (or keep a sibling
 folder `../buildkit`). CI and fresh clones fetch the pinned tag; set
 `BUILDKIT_TAG` before the include to choose another (a tag or a branch name, not a
-commit SHA). The reusable `ci.yml` checks buildkit out at `buildkit-ref` and sets
-`BUILDKIT_DIR` itself, so a product needs no `BUILDKIT_TAG` default to use a
-pre-release buildkit in CI.
+commit SHA). With the input `buildkit-ref` set, the reusable `ci.yml` and `codeql.yml`
+check buildkit out at that ref and set `BUILDKIT_DIR` themselves, so a product needs no
+`BUILDKIT_TAG` default to use a pre-release buildkit in CI. Without it (the default) the
+product's own `BUILDKIT_TAG` pin is used, as on a developer machine.
 
 ## 2. Delete the old copies
 
@@ -77,6 +78,8 @@ in the product (usually at the end of its `Common.cmake`, which is included afte
   ```cmake
   if(NOT <ROOT>_VERSION)
       buildkit_git_version(${CMAKE_CURRENT_SOURCE_DIR} <ROOT>_VERSION <ROOT>_VERSION_FULL FALLBACK <x.y.z>)
+  else()
+      set(<ROOT>_VERSION_FULL ${<ROOT>_VERSION})
   endif()
   # after project(), if the product printed a version before:
   message(STATUS "<Product> version: ${<ROOT>_VERSION_FULL}")
@@ -116,9 +119,10 @@ Check what the old workflows did that the reusable one cannot do as a step, and 
 - An install smoke test (or any other extra check): register it as a ctest test in the
   product with a label such as `install`, so that every preset runs it. There is no step hook.
 - Extra `-D` options for the configure: `configure-args`.
-- Pre-release buildkit: set `buildkit-ref`; `ci.yml` and `codeql.yml` check it out and set
-  `BUILDKIT_DIR`. Do not keep a temporary `BUILDKIT_REPOSITORY`/`BUILDKIT_TAG` default in
-  the product's CMakeLists.
+- Pre-release buildkit: set `buildkit-ref`; then `ci.yml` and `codeql.yml` check it out and
+  set `BUILDKIT_DIR`, so the product needs no temporary `BUILDKIT_REPOSITORY`/`BUILDKIT_TAG`
+  default. Leave `buildkit-ref` empty for a released buildkit: the product's loader pin
+  is honoured. Lint always needs buildkit's files and uses `buildkit-ref`, or `v2.0.0` if empty.
 - Lint: `lint: false` switches all three checks off; use `lint-format`, `lint-cmake` and
   `lint-commits` to pick single checks.
 

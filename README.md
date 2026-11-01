@@ -70,7 +70,8 @@ automatically; a product does `include(InstallConfig)` when it wants it.
 (the default) or stops with an error for `REQUIRED`. Both messages name the cause
 (not installed, no network, offline) and the bootstrap script; `INSTALL_HINT "apt install libfoo-dev"`
 adds the package name to the `REQUIRED` error. Offline mode
-(`BUILDKIT_OFFLINE` or `FETCHCONTENT_FULLY_DISCONNECTED`, also as environment variables) never touches the
+(`BUILDKIT_OFFLINE` or `FETCHCONTENT_FULLY_DISCONNECTED`, also as environment variables; the
+switches are OR'ed, so `-DBUILDKIT_OFFLINE=OFF` cannot undo an environment variable) never touches the
 network, and an unreachable host is detected by a 30 second probe instead of a
 long hang. Full syntax: header of `cmake/Dependency.cmake`.
 
