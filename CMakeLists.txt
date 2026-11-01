@@ -8,6 +8,8 @@ project(buildkit_tests LANGUAGES NONE)
 
 include(CTest)
 
+find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
+
 # buildkit_add_fixture_test(NAME <n> DIR <dir> [ARGS <cmake args>...]
 #                           [EXPECT_FAIL] [EXPECT_OUTPUT <regex>] [BUILD])
 #
@@ -139,3 +141,9 @@ endforeach()
 buildkit_add_fixture_test(NAME packaging_installer_search DIR packaging_installer BUILD
     ARGS -DCASE=search
          "-DBUILDKIT_WINE=${CMAKE_SOURCE_DIR}/tests/packaging_installer/fake/wine")
+
+# Release version tool (tools/release/next_version.py). -B keeps __pycache__ out of
+# the source tree; -I keeps the script directory and cwd off sys.path.
+add_test(NAME release_tool
+    COMMAND ${Python3_EXECUTABLE} -B -I -m unittest discover
+            -s ${CMAKE_CURRENT_SOURCE_DIR}/tools/release -p "test_*.py" -v)
