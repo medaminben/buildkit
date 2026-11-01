@@ -4,7 +4,6 @@
 #   on:
 #     pull_request:
 #       types: [closed]
-#     workflow_dispatch:     # required when installer-workflow is used
 #   jobs:
 #     release:
 #       uses: medaminben/buildkit/.github/workflows/release.yml@v2.0.0
@@ -14,11 +13,20 @@
 #       with:
 #         installer-workflow: windows-installer.yml   # optional
 #
+# installer-workflow is started with "gh workflow run <file> --ref <tag>", so
+# that workflow must have "on: workflow_dispatch" in the caller's repository.
+#
 # The job runs only for a merged pull request into main or Beta. It takes the
-# semver:* label of the PR, computes the next tag, tags the merge commit,
-# creates the GitHub release (a pre-release on Beta) and, when given, starts
-# the installer workflow of the caller on the new tag. The installer workflow
-# must have "on: workflow_dispatch" because it is started with gh workflow run.
+# semver:* label of the PR (patch without a label, semver:none means no
+# release), tags the merge commit, creates the GitHub release (a pre-release on
+# Beta) with the commit subjects since the previous tag as notes and, when
+# given, starts the installer workflow on the new tag. See
+# tools/release/plan_release.py for the tag rules:
+#   - Beta gets X.Y.Z-beta.N, N continuing the highest beta of the same X.Y.Z.
+#   - main gets X.Y.Z. A merge of the Beta branch into main (promotion)
+#     releases the base version of the highest beta tag reachable from the
+#     merge commit that is greater than the latest stable. Without such a beta
+#     the labels decide as usual. semver:none still means no release.
 name: Release (reusable)
 
 on:
@@ -41,12 +49,19 @@ permissions:
   contents: write
   actions: write
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   release:
     if: >-
       github.event.pull_request.merged == true &&
       (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'Beta')
     runs-on: ubuntu-latest
+    concurrency:
+      group: release-${{ github.repository }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,49 +74,43 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Compute the tag
-        id: version
+      - name: Plan the release
+        id: plan
         env:
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
-          BRANCH: ${{ github.event.pull_request.base.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
+          set -euo pipefail
           git fetch --tags --force
-          stable="$(git tag --list 'v[0-9]*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)"
-          beta="$(git tag --list 'v[0-9]*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$' | head -n1 || true)"
-          echo "latest stable: '$stable', latest beta: '$beta', labels: '$LABELS', branch: $BRANCH"
-          tag="$(python3 -B -I .buildkit/tools/release/next_version.py \
-            --latest-stable "$stable" --latest-beta "$beta" \
-            --labels "$LABELS" --branch "$BRANCH")"
+          tag="$(python3 -B -I .buildkit/tools/release/plan_release.py \
+            --labels "$LABELS" --base "$BASE_REF" --head "$HEAD_REF" --sha "$SHA" \
+            --notes-file "$RUNNER_TEMP/notes.md")"
           if [ -z "$tag" ]; then
             echo "::notice::No release for this pull request (semver:none)."
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - name: Tag and publish the release
-        if: steps.version.outputs.tag != ''
+        if: steps.plan.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
+          TAG: ${{ steps.plan.outputs.tag }}
           SHA: ${{ github.event.pull_request.merge_commit_sha }}
-          BRANCH: ${{ github.event.pull_request.base.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
-          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
-          git fetch origin "$SHA" 2>/dev/null || true
-          previous="$(git describe --tags --abbrev=0 "$SHA" 2>/dev/null || true)"
-          if [ -n "$previous" ]; then
-            git log --format='- %s' "$previous..$SHA" > "$RUNNER_TEMP/notes.md"
-          else
-            git log --format='- %s' "$SHA" > "$RUNNER_TEMP/notes.md"
-          fi
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$TAG" -m "Release $TAG" "$SHA"
           git push origin "refs/tags/$TAG"
           args=(--notes-file "$RUNNER_TEMP/notes.md" --target "$SHA" --title "$TAG")
-          if [ "$BRANCH" = "Beta" ]; then args+=(--prerelease); fi
+          if [ "$BASE_REF" = "Beta" ]; then args+=(--prerelease); fi
           gh release create "$TAG" "${args[@]}"
       - name: Run the installer workflow
-        if: steps.version.outputs.tag != '' && inputs.installer-workflow != ''
+        if: steps.plan.outputs.tag != '' && inputs.installer-workflow != ''
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
+          TAG: ${{ steps.plan.outputs.tag }}
           INSTALLER: ${{ inputs.installer-workflow }}
         run: gh workflow run "$INSTALLER" --ref "$TAG"

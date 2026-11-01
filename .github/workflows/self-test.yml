@@ -1,12 +1,17 @@
-# Tests buildkit itself: the harness and the workflow files.
+# Tests buildkit itself: the harness, the workflow files and the repo's own scripts.
 name: Self-test
 
 on:
   push:
+    branches: [master, main]
   pull_request:
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   harness:
@@ -20,10 +25,19 @@ jobs:
           python-version: "3.12"
       - name: Install toolchain
         run: |
-          python3 -m pip install "cmake==3.31.*" ninja
+          set -euo pipefail
+          python3 -m pip install "cmake==3.31.*"
           sudo apt-get update
           sudo apt-get install -y ninja-build g++
           cmake --version
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: CMake style check
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*.cmake' '*CMakeLists.txt')
+          node scripts/check-cmake-style.mjs "${files[@]}"
       - name: Configure the harness
         run: cmake --preset tests
       - name: Run the tests
