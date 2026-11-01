@@ -28,6 +28,10 @@ function(buildkit_add_fixture_test)
     if(NOT ft_NAME OR NOT ft_DIR)
         message(FATAL_ERROR "buildkit_add_fixture_test: NAME and DIR are required")
     endif()
+    if(ft_BUILD AND ft_EXPECT_FAIL)
+        message(FATAL_ERROR
+            "buildkit_add_fixture_test: BUILD and EXPECT_FAIL are mutually exclusive")
+    endif()
     if(ft_UNPARSED_ARGUMENTS)
         message(FATAL_ERROR
             "buildkit_add_fixture_test: unknown arguments: ${ft_UNPARSED_ARGUMENTS}")
@@ -64,4 +68,4 @@ buildkit_add_fixture_test(NAME harness_ok_output DIR harness/ok
 buildkit_add_fixture_test(NAME harness_fail DIR harness/fail EXPECT_FAIL)
 buildkit_add_fixture_test(NAME harness_fail_output DIR harness/fail
     EXPECT_FAIL EXPECT_OUTPUT "bootstrap.sh")
-buildkit_add_fixture_test(NAME harness_build DIR harness/build BUILD)
+buildkit_add_fixture_test(NAME harness_build DIR harness/built BUILD)

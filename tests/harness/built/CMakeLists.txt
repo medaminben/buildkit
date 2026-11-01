@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.29)
+project(harness_build LANGUAGES NONE)
+include(CTest)
+add_custom_target(all_done ALL COMMAND ${CMAKE_COMMAND} -E echo built)
+add_test(NAME inner_pass COMMAND ${CMAKE_COMMAND} -E echo inner)
