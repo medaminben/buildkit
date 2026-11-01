@@ -1,14 +1,14 @@
 # buildkit entry point. A product does
 #   include(<buildkit>/cmake/Buildkit.cmake)
-# once; it sets BUILDKIT_ROOT and BUILDKIT_VERSION, extends CMAKE_MODULE_PATH
+# once; it sets BUILDKIT_ROOT, BUILDKIT_VERSION and BUILDKIT_VERSION_FULL, extends CMAKE_MODULE_PATH
 # and includes every module that is safe to load without side effects.
 include_guard(GLOBAL)
 
 # cmake/ -> buildkit root (absolute)
 get_filename_component(BUILDKIT_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 
-# TODO(task 4): replace by buildkit_git_version(... FALLBACK 2.0.0)
-set(BUILDKIT_VERSION "2.0.0")
+include(${CMAKE_CURRENT_LIST_DIR}/GitVersion.cmake)
+buildkit_git_version("${BUILDKIT_ROOT}" BUILDKIT_VERSION BUILDKIT_VERSION_FULL FALLBACK 2.0.0)
 
 list(APPEND CMAKE_MODULE_PATH
     "${BUILDKIT_ROOT}/cmake"

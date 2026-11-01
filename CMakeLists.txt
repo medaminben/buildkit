@@ -101,3 +101,8 @@ add_test(NAME dependency_shallow_check
 buildkit_add_fixture_test(NAME gtest DIR gtest/on BUILD
     EXPECT_OUTPUT "GTest[^\n]*: (installed|fetched)")
 buildkit_add_fixture_test(NAME gtest_off DIR gtest/off EXPECT_OUTPUT "GTEST_UNTOUCHED")
+
+# buildkit_git_version (cmake/GitVersion.cmake)
+add_test(NAME version
+    COMMAND ${CMAKE_COMMAND} -DBUILDKIT_DIR=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/tests/version/run.cmake)
