@@ -27,13 +27,17 @@ The loader finds buildkit in this order:
 1. `BUILDKIT_DIR` (cache entry or environment variable) with a `cmake/Buildkit.cmake` inside.
    A wrong path is a fatal error that names it.
 2. A sibling checkout `${CMAKE_SOURCE_DIR}/../buildkit`.
-3. A git fetch of `BUILDKIT_REPO` at `BUILDKIT_TAG` (default `v2.0.0`) into
-   `build/_buildkit`. Set `BUILDKIT_TAG` before the include to pin another tag.
+3. A git fetch of `BUILDKIT_REPOSITORY` at `BUILDKIT_TAG` (default `v2.0.0`, a tag,
+   not a SHA) into `<binary dir>/_buildkit/src`, with the tag stamped in
+   `<binary dir>/_buildkit/tag`. Set `BUILDKIT_TAG` before the include to pin another tag.
 
 It prints `buildkit: using <path> (local working copy | tag vX.Y.Z)`. With
 `BUILDKIT_OFFLINE` or `FETCHCONTENT_FULLY_DISCONNECTED` ON and no local copy it
-stops with an error, because buildkit itself is required; run
-`redev/bootstrap/bootstrap.sh` or set `BUILDKIT_DIR`. The loader needs no compiler
+reuses a copy fetched earlier for the same tag (`tag vX.Y.Z, cached`; the same
+applies when the remote does not answer). A cached copy of another tag, or no
+copy at all, is an error, because buildkit itself is required; run
+`redev/bootstrap/bootstrap.sh` or set `BUILDKIT_DIR`. A changed tag is fetched
+again when online. The loader needs no compiler
 and is safe to include twice.
 
 ## Modules
@@ -52,7 +56,7 @@ and is safe to include twice.
 | `LibraryGenerator` | `generate_libraries()`, `generate_project()` |
 | `TestUtils`, `GTestSupport` | `build_gtest_executable()`; GoogleTest through `dev_dependency` on first use |
 | `Packaging` | `buildkit_add_stage_target()`, `buildkit_add_inno_installer()` |
-| `Manual` | `buildkit_add_manual()`: multilingual Markdown manual to static HTML |
+| `Manual` | `buildkit_add_manual()`: multilingual Markdown manual to static HTML. It must work offline: any `http://` or `https://` URL in a page fails the check, and a backtick span is always an application label, never inline code |
 | `DebugUtils` | Variable dump for debugging |
 
 `InstallConfig` (install and export of `find_package` config) is not included
@@ -83,8 +87,9 @@ are created by the reusable workflows; see [docs/CI_CD.md](docs/CI_CD.md).
 
 ## Build output
 
-All build output goes under `<repo>/build/` (`build/<preset>`, `build/_buildkit`,
-`build/stage`, `build/dist`). The generated presets and `.gitignore` follow this;
+All build output goes under `<repo>/build/`: each preset has its own binary dir
+`build/<preset>`, and the loader cache (`_buildkit`), the stage folder (`stage`) and
+the installer output (`dist`) live inside it, for example `build/default/_buildkit`. The generated presets and `.gitignore` follow this;
 never configure into `build-*` folders or into the source tree.
 
 ## Tests of buildkit itself

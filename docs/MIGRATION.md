@@ -67,7 +67,7 @@ a `Beta` branch if you use the beta flow. The installer workflow, if any, needs
 Use `buildkit_add_stage_target` and `buildkit_add_inno_installer` instead of
 local installer code. Product specific installer pieces stay in the product: a
 WIN32 `LICENSE` install, the `.iss` script and runtime data are passed through
-`INSTALL_SCRIPTS` and `ISS`. A user manual can use `buildkit_add_manual`.
+`INSTALL_SCRIPTS` and `ISS`. A user manual can use `buildkit_add_manual`; it ships inside the installer and must work offline, so any `http://` or `https://` URL in a page fails the check, and a backtick span is always an application label, never inline code.
 
 ## 8. Verify
 
