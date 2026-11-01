@@ -7,6 +7,10 @@
 # LABELS  JSON {lang: [labels]}; every `label` in the pages must be listed
 # TITLE   site title (default: "User manual")
 #
+# The manual ships inside the installer and must work offline: the check fails
+# on any http:// or https:// URL in a page. In this Markdown dialect a backtick
+# span is always an application label, never inline code.
+#
 # Adds the target <name>_manual (builds into ${CMAKE_BINARY_DIR}/manual, not part
 # of ALL) and the ctest test <name>_manual_check. Without Python >= 3.11 it only
 # prints a status message and adds nothing.
