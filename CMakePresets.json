@@ -1,102 +1,19 @@
 {
   "version": 6,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 29,
-    "patch": 0
-  },
+  "cmakeMinimumRequired": { "major": 3, "minor": 29, "patch": 0 },
   "configurePresets": [
     {
-      "name": "default",
-      "displayName": "Default (Ninja, Release)",
-      "generator": "Unix Makefiles",
-      "binaryDir": "${sourceDir}/build/default",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "BUILD_TESTING": "ON",
-        "BUILD_APPS": "ON",
-        "BUILD_QT_UI": "OFF",
-        "BUILD_VERBOSE_OUTPUT": "OFF"
-      }
-    },
-    {
-      "name": "ninja",
-      "displayName": "Ninja (Release)",
+      "name": "tests",
+      "displayName": "buildkit fixture tests",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "BUILD_TESTING": "ON",
-        "BUILD_APPS": "ON",
-        "BUILD_QT_UI": "OFF",
-        "BUILD_VERBOSE_OUTPUT": "OFF"
-      }
-    },
-    {
-      "name": "debug",
-      "displayName": "Debug",
-      "inherits": "default",
-      "binaryDir": "${sourceDir}/build/debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
-    },
-    {
-      "name": "coverage",
-      "displayName": "Coverage",
-      "inherits": "debug",
-      "binaryDir": "${sourceDir}/build/coverage",
-      "cacheVariables": {
-        "ENABLE_COVERAGE": "ON"
-      }
-    },
-    {
-      "name": "ci",
-      "displayName": "CI",
-      "inherits": "default",
-      "binaryDir": "${sourceDir}/build/ci",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "ENABLE_COVERAGE": "ON"
-      }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "default",
-      "configurePreset": "default"
-    },
-    {
-      "name": "ninja",
-      "configurePreset": "ninja"
-    },
-    {
-      "name": "debug",
-      "configurePreset": "debug"
-    },
-    {
-      "name": "coverage",
-      "configurePreset": "coverage"
-    },
-    {
-      "name": "ci",
-      "configurePreset": "ci"
+      "binaryDir": "${sourceDir}/build/tests-harness"
     }
   ],
   "testPresets": [
     {
-      "name": "default",
-      "configurePreset": "default",
-      "output": {
-        "outputOnFailure": true
-      }
-    },
-    {
-      "name": "ci",
-      "configurePreset": "ci",
-      "output": {
-        "outputOnFailure": true
-      }
+      "name": "tests",
+      "configurePreset": "tests",
+      "output": { "outputOnFailure": true }
     }
   ]
 }

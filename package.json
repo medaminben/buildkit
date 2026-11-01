@@ -7,7 +7,7 @@
     "format": "clang-format -i $(git ls-files '*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx')",
     "format:check": "clang-format --dry-run --Werror $(git ls-files '*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx')",
     "lint:cmake": "node scripts/check-cmake-style.mjs",
-    "commitlint": "commitlint --edit"
+    "commitlint": "commitlint --config lint/commitlint.config.cjs --edit"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",

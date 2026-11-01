@@ -1,53 +1,47 @@
+# buildkit test harness.
+#
+# This top-level project does not build anything itself. Every module has
+# small fixture projects under tests/<module>/; each one is registered here
+# as a CTest test that configures the fixture into build/tests/<name>.
 cmake_minimum_required(VERSION 3.29)
+project(buildkit_tests LANGUAGES NONE)
 
-project(UnitPro VERSION 1.4.0 LANGUAGES CXX)
+include(CTest)
 
-# Global project name used by library aliases (UnitPro::Core)
-set(CMAKE_ROOT_NAME ${PROJECT_NAME})
+# buildkit_add_fixture_test(NAME <n> DIR <dir> [ARGS <cmake args>...]
+#                           [EXPECT_FAIL] [EXPECT_OUTPUT <regex>])
+#
+# Configures tests/<dir> into build/tests/<n> with -DBUILDKIT_DIR=<buildkit>.
+# The binary dir is removed first so every run starts from a clean cache.
+# EXPECT_FAIL: the configure must fail. EXPECT_OUTPUT: the output must match.
+function(buildkit_add_fixture_test)
+    cmake_parse_arguments(PARSE_ARGV 0 ft "EXPECT_FAIL" "NAME;DIR;EXPECT_OUTPUT" "ARGS")
+    if(NOT ft_NAME OR NOT ft_DIR)
+        message(FATAL_ERROR "buildkit_add_fixture_test: NAME and DIR are required")
+    endif()
+    if(ft_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR
+            "buildkit_add_fixture_test: unknown arguments: ${ft_UNPARSED_ARGUMENTS}")
+    endif()
 
-# ---------------------------------------------------------------------------
-# Build options
-# ---------------------------------------------------------------------------
-option(BUILD_SHARED_LIBS    "Build project libraries as shared libraries" ON)
-option(BUILD_APPS           "Build applications"                          ON)
-option(BUILD_VERBOSE_OUTPUT "Dump CMake variables and verbose make"       OFF)
-option(BUILD_TESTING        "Build and register unit tests"               ON)
-option(BUILD_QT_UI          "Build Qt-based applications (requires Qt)"   OFF)
-option(ENABLE_COVERAGE      "Enable code coverage instrumentation"        OFF)
-option(ENABLE_CLANG_TIDY    "Run clang-tidy during compilation"           OFF)
-option(GENERATE_SCAFFOLD    "Generate missing libraries from templates"   ON)
+    set(src "${CMAKE_SOURCE_DIR}/tests/${ft_DIR}")
+    set(bin "${CMAKE_SOURCE_DIR}/build/tests/${ft_NAME}")
 
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
+    add_test(NAME ${ft_NAME}
+        COMMAND ${CMAKE_COMMAND}
+            -DFIXTURE_SRC=${src}
+            -DFIXTURE_BIN=${bin}
+            -DBUILDKIT_DIR=${CMAKE_SOURCE_DIR}
+            "-DFIXTURE_ARGS=${ft_ARGS}"
+            -P ${CMAKE_SOURCE_DIR}/tests/run_fixture.cmake)
 
-include(Common)
+    if(ft_EXPECT_FAIL)
+        set_tests_properties(${ft_NAME} PROPERTIES WILL_FAIL TRUE)
+    endif()
+    if(ft_EXPECT_OUTPUT)
+        set_tests_properties(${ft_NAME} PROPERTIES
+            PASS_REGULAR_EXPRESSION "${ft_EXPECT_OUTPUT}")
+    endif()
+endfunction()
 
-# Libraries to generate / include. Add new names here for scaffold generation.
-set(UNITPRO_LIBRARIES Core)
-
-set(libraries_dir    ${CMAKE_SOURCE_DIR}/libraries)
-set(applications_dir ${CMAKE_SOURCE_DIR}/applications)
-set(template_dir     ${CMAKE_SOURCE_DIR}/cmake/template)
-
-if(GENERATE_SCAFFOLD)
-    generate_libraries(
-        LIBRARIES_LIST     ${UNITPRO_LIBRARIES}
-        LIBRARIES_LOCATION ${libraries_dir}
-        APPS_LOCATION      ${applications_dir}
-        TEMPLATE_LOCATION  ${template_dir}
-    )
-endif()
-
-if(EXISTS "${libraries_dir}/CMakeLists.txt")
-    add_subdirectory(${libraries_dir})
-endif()
-
-if(BUILD_APPS AND EXISTS "${applications_dir}/CMakeLists.txt")
-    add_subdirectory(${applications_dir})
-endif()
-
-include(InstallConfig)
-
-if(BUILD_VERBOSE_OUTPUT)
-    dump_cmake_vars(BuildLogEnd.log)
-endif()
+buildkit_add_fixture_test(NAME entry DIR entry EXPECT_OUTPUT "BUILDKIT_ROOT=/")
