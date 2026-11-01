@@ -147,3 +147,9 @@ buildkit_add_fixture_test(NAME packaging_installer_search DIR packaging_installe
 add_test(NAME release_tool
     COMMAND ${Python3_EXECUTABLE} -B -I -m unittest discover
             -s ${CMAKE_CURRENT_SOURCE_DIR}/tools/release -p "test_*.py" -v)
+
+# Manual builder (tools/manual/build_manual.py) and its fixture project.
+add_test(NAME manual_tool
+    COMMAND ${Python3_EXECUTABLE} -B -I -m unittest discover
+            -s ${CMAKE_CURRENT_SOURCE_DIR}/tools/manual -p "test_*.py" -v)
+buildkit_add_fixture_test(NAME manual DIR manual BUILD)
