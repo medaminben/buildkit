@@ -59,16 +59,15 @@ def next_version(
     if len(bumps) > 1:
         raise ValueError(f"conflicting semver labels: {sorted(bumps)}")
 
-    beta = _parse_beta(latest_beta) if latest_beta is not None else None
+    if bumps == {"none"}:
+        return None
 
     if latest_stable is None:
-        # First release: 0.1.0 regardless of the label.
+        # First release: 0.1.0 regardless of the bump label.
         target = (0, 1, 0)
     else:
         base = _parse_version(latest_stable)
         kind = bumps.pop() if bumps else "patch"
-        if kind == "none":
-            return None
         target = _bump(base, kind)
 
     x, y, z = target
@@ -76,6 +75,7 @@ def next_version(
     if target_branch == "main":
         return target_str
 
+    beta = _parse_beta(latest_beta) if latest_beta is not None else None
     if beta is not None and beta[0] == target:
         return f"{target_str}-beta.{beta[1] + 1}"
     return f"{target_str}-beta.1"

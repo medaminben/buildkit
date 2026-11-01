@@ -52,6 +52,17 @@ class NextVersionTests(unittest.TestCase):
     def test_first_release_ignores_label(self):
         self.assertEqual(next_version(None, ["semver:major"], "main"), "0.1.0")
 
+    def test_none_label_on_first_release_returns_none(self):
+        self.assertIsNone(next_version(None, ["semver:none"], "main"))
+
+    def test_none_label_on_first_beta_returns_none(self):
+        self.assertIsNone(next_version(None, ["semver:none"], "Beta"))
+
+    def test_main_does_not_parse_latest_beta(self):
+        self.assertEqual(
+            next_version("1.5.4", [], "main", latest_beta="garbage"), "1.5.5"
+        )
+
     def test_beta_first_beta_of_bumped_base(self):
         self.assertEqual(next_version("1.5.4", ["semver:minor"], "Beta"), "1.6.0-beta.1")
 
@@ -108,6 +119,25 @@ class CliTests(unittest.TestCase):
                          "--branch", "main")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "")
+
+    def test_empty_stable_with_none_label_prints_nothing(self):
+        result = run_cli("--latest-stable", "", "--labels", "semver:none",
+                         "--branch", "main")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    def test_beta_increments_latest_beta(self):
+        result = run_cli("--branch", "Beta", "--latest-beta", "v1.6.0-beta.2",
+                         "--labels", "semver:minor", "--latest-stable", "v1.5.4")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "v1.6.0-beta.3\n")
+
+    def test_malformed_stable_exits_2(self):
+        result = run_cli("--latest-stable", "v1.5", "--labels", "",
+                         "--branch", "main")
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertTrue(result.stderr.strip())
 
     def test_conflict_exits_2(self):
         result = run_cli("--latest-stable", "v1.5.4",
