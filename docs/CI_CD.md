@@ -31,6 +31,7 @@ over `CMAKE_SOURCE_DIR` (or must exclude `.buildkit`).
 | `lint-format`, `lint-cmake`, `lint-commits` | `true` | clang-format, CMake style, commitlint on PR commits. Only used when `lint` is `true` |
 | `format-exclude` | empty | Git pathspec globs that clang-format skips, separated by spaces or newlines, e.g. `3rdparty/**`. Applied as `':(exclude)<glob>'` on `git ls-files` |
 | `xvfb` | `false` | Install `xvfb` and run ctest under `xvfb-run -a` (GUI tests) |
+| `timeout-minutes` | `45` | Time limit of each build job; a caller job of a reusable workflow cannot set it |
 | `configure-args` | empty | Arguments for `cmake --preset <preset>`, after the preset. Split at whitespace on purpose, so an argument cannot contain a space and quotes are not interpreted |
 | `static-analysis` | `true` | clang-tidy and cppcheck |
 | `coverage` | `false` | Also run the `coverage` preset (gcc) and upload the report |

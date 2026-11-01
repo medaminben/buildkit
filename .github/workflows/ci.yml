@@ -16,6 +16,7 @@
 #         coverage: true
 #         sanitizers: true
 #         xvfb: true               # ctest under xvfb-run (GUI tests)
+#         timeout-minutes: 45      # per build job (a caller job cannot set it)
 #         format-exclude: "3rdparty/**"
 #         configure-args: "-DMY_OPTION=ON"
 #
@@ -82,6 +83,10 @@ on:
         description: "Install xvfb and run ctest under xvfb-run -a (for GUI tests)"
         type: boolean
         default: false
+      timeout-minutes:
+        description: "Time limit of each build job in minutes"
+        type: number
+        default: 45
       configure-args:
         description: "Extra arguments for cmake --preset, after the preset. Split at whitespace (no quoting), e.g. -DFOO=ON -DBAR=1"
         type: string
@@ -184,6 +189,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
       - uses: actions/checkout@v4
         with:
