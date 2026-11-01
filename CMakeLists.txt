@@ -119,3 +119,12 @@ buildkit_add_fixture_test(NAME layout_generate_legacy DIR layout/generate_legacy
     EXPECT_OUTPUT "LAYOUT_GENERATE_LEGACY_OK")
 buildkit_add_fixture_test(NAME layout_project DIR layout/project BUILD
     EXPECT_OUTPUT "LAYOUT_PROJECT_OK")
+
+# Packaging (cmake/Packaging.cmake): stage target; no ISCC on this machine, so the
+# installer target must be absent with a status message.
+buildkit_add_fixture_test(NAME packaging DIR packaging BUILD
+    ARGS -DBUILDKIT_ISCC=/nonexistent/ISCC.exe
+    EXPECT_OUTPUT "PACKAGING_OK")
+buildkit_add_fixture_test(NAME packaging_no_iscc_message DIR packaging
+    ARGS -DBUILDKIT_ISCC=/nonexistent/ISCC.exe
+    EXPECT_OUTPUT "pkgapp_installer: ISCC not found.*skipped")
