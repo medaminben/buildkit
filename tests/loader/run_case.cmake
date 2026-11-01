@@ -12,6 +12,8 @@ cmake_policy(SET CMP0054 NEW)
 #   disconnected    same with FETCHCONTENT_FULLY_DISCONNECTED
 #   stale_offline   after a fetch of one tag, offline for another: fatal, names both
 #   tagchange       after a fetch, online with another tag: re-fetched
+#   offline_env     like offline, but BUILDKIT_OFFLINE=1 in the environment only
+#   cached_offline_env / disconnected_env  like cached_offline / disconnected, via the environment
 #   dead_cached     after a fetch, remote unreachable: the cache is used
 set(work "${BUILDKIT_REPO}/build/tests/loader-${CASE}")
 file(REMOVE_RECURSE "${work}")
@@ -107,6 +109,9 @@ elseif(CASE STREQUAL "bad_dir")
 elseif(CASE STREQUAL "offline")
     run(all rc ENV ${unset_env} ARGS -DBUILDKIT_OFFLINE=ON)
     expect_fail("${all}" ${rc} "BUILDKIT_DIR.*bootstrap.sh")
+elseif(CASE STREQUAL "offline_env")
+    run(all rc ENV ${unset_env} BUILDKIT_OFFLINE=1)
+    expect_fail("${all}" ${rc} "BUILDKIT_DIR.*bootstrap.sh")
 else()
     make_remote()
     set(online -DBUILDKIT_REPOSITORY=${REMOTE} -DBUILDKIT_TAG=v9.9.9)
@@ -121,6 +126,12 @@ else()
         # nothing more
     elseif(CASE STREQUAL "cached_offline")
         run(all rc ENV ${unset_env} ARGS ${online} -DBUILDKIT_OFFLINE=ON)
+        expect_ok("${all}" ${rc} "using ${src_re} \\(tag v9.9.9, cached\\)")
+    elseif(CASE STREQUAL "cached_offline_env")
+        run(all rc ENV ${unset_env} BUILDKIT_OFFLINE=1 ARGS ${online})
+        expect_ok("${all}" ${rc} "using ${src_re} \\(tag v9.9.9, cached\\)")
+    elseif(CASE STREQUAL "disconnected_env")
+        run(all rc ENV ${unset_env} FETCHCONTENT_FULLY_DISCONNECTED=ON ARGS ${online})
         expect_ok("${all}" ${rc} "using ${src_re} \\(tag v9.9.9, cached\\)")
     elseif(CASE STREQUAL "disconnected")
         run(all rc ENV ${unset_env} ARGS ${online} -DFETCHCONTENT_FULLY_DISCONNECTED=ON)

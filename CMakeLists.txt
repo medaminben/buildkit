@@ -62,6 +62,9 @@ function(buildkit_add_fixture_test)
 endfunction()
 
 buildkit_add_fixture_test(NAME entry DIR entry EXPECT_OUTPUT "BUILDKIT_ROOT=/")
+# A product's own cmake/Common.cmake is not shadowed by buildkit (there is none).
+buildkit_add_fixture_test(NAME module_path DIR module_path
+    EXPECT_OUTPUT "MODULE_PATH_OK product-common")
 
 # Harness self-tests
 buildkit_add_fixture_test(NAME harness_ok DIR harness/ok)
@@ -79,10 +82,18 @@ buildkit_add_fixture_test(NAME dependency_found DIR dependency/found
 buildkit_add_fixture_test(NAME dependency_missing_optional DIR dependency/missing_optional
     EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*no network\\):.*building.*without")
 buildkit_add_fixture_test(NAME dependency_missing_required DIR dependency/missing_required
-    EXPECT_FAIL EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*no network\\):.*cannot.*build.*redev/bootstrap/bootstrap\\.sh")
+    EXPECT_FAIL EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*no network\\):.*cannot.*build.*redev/bootstrap/bootstrap\\.sh.*apt.*install.*libnosuchpkg-dev")
 buildkit_add_fixture_test(NAME dependency_offline_optional DIR dependency/offline_optional
     ARGS -DBUILDKIT_OFFLINE=ON
     EXPECT_OUTPUT "NoSuchGTestName not available \\(not installed,.*offline\\):.*building.*without")
+# The environment alone must switch offline mode on (BUILDKIT_OFFLINE, FETCHCONTENT_FULLY_DISCONNECTED).
+buildkit_add_fixture_test(NAME dependency_offline_env DIR dependency/offline_optional
+    EXPECT_OUTPUT "NoSuchGTestName not available \\(not installed,.*offline\\):.*building.*without")
+buildkit_add_fixture_test(NAME dependency_disconnected_env DIR dependency/offline_optional
+    EXPECT_OUTPUT "NoSuchGTestName not available \\(not installed,.*offline\\):.*building.*without")
+set_tests_properties(dependency_offline_env PROPERTIES ENVIRONMENT "BUILDKIT_OFFLINE=1")
+set_tests_properties(dependency_disconnected_env PROPERTIES ENVIRONMENT "FETCHCONTENT_FULLY_DISCONNECTED=ON")
+set_tests_properties(dependency_offline_env dependency_disconnected_env PROPERTIES TIMEOUT 35)
 buildkit_add_fixture_test(NAME dependency_fetch_url DIR dependency/fetch_url
     EXPECT_OUTPUT "tiny: fetched")
 buildkit_add_fixture_test(NAME dependency_blackhole_optional DIR dependency/blackhole_optional
@@ -124,7 +135,8 @@ buildkit_add_fixture_test(NAME layout_project DIR layout/project BUILD
 
 # Loader (loader/buildkit.cmake); fetch cases use a file:// repo built under build/.
 foreach(case local env sibling bad_dir offline twice fetch cached_offline
-                disconnected stale_offline tagchange dead_cached)
+                disconnected stale_offline tagchange dead_cached
+                offline_env cached_offline_env disconnected_env)
     add_test(NAME loader_${case}
         COMMAND ${CMAKE_COMMAND} -DCASE=${case} -DBUILDKIT_REPO=${CMAKE_SOURCE_DIR}
                 -P ${CMAKE_SOURCE_DIR}/tests/loader/run_case.cmake)

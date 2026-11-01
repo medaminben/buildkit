@@ -9,7 +9,8 @@
 #     [FETCH_URL <url> [FETCH_SHA256 <hex>] | FETCH_GIT <repo> FETCH_TAG <tag>]
 #     [FETCH_CACHE <VAR>=<value>...]
 #     [REQUIRED | OPTIONAL]                  # default OPTIONAL
-#     [FOUND_VAR <var>])                     # default <Name>_AVAILABLE
+#     [FOUND_VAR <var>]                      # default <Name>_AVAILABLE
+#     [INSTALL_HINT "<text>"])               # appended to the REQUIRED error
 #
 # 1. find_package(<Name> [<VERSION>] QUIET <FIND_ARGS> [COMPONENTS ...]).
 #    The variables it defines (<Name>_FOUND, <Name>_DIR, ...) are passed to
@@ -18,7 +19,8 @@
 #    directory wins: that source is used directly, with no offline check and
 #    no probe ("<Name>: local source (<dir>)").
 # 3. Else, with fetch arguments, the source is probed unless BUILDKIT_OFFLINE
-#    or FETCHCONTENT_FULLY_DISCONNECTED is ON:
+#    or FETCHCONTENT_FULLY_DISCONNECTED is ON (cache, normal variable or
+#    environment variable of that name; a truthy value such as 1 or ON):
 #      URL  a 1-byte ranged request (TIMEOUT 30, which also bounds connecting
 #           to a host that drops packets; if the server ignores the range and
 #           the whole file arrives within it, that is the download), then
@@ -78,13 +80,17 @@ function(_dev_dependency_git_declare repo tag out)
     set(${out} "${args}" PARENT_SCOPE)
 endfunction()
 
-function(_dev_dependency_unavailable name required cause detail)
+function(_dev_dependency_unavailable name required cause detail hint)
     if(detail)
         message(STATUS "${name}: ${detail}")
     endif()
+    set(hint_text "")
+    if(hint)
+        set(hint_text ". ${hint}")
+    endif()
     if(required)
         message(FATAL_ERROR "${name} not available (${cause}): cannot build without it. "
-                            "Install with redev/bootstrap/bootstrap.sh")
+                            "Install with redev/bootstrap/bootstrap.sh${hint_text}")
     else()
         message(WARNING "${name} not available (${cause}): building without it. "
                         "Install with redev/bootstrap/bootstrap.sh")
@@ -127,7 +133,7 @@ endfunction()
 function(dev_dependency name)
     cmake_parse_arguments(PARSE_ARGV 1 dd
         "REQUIRED;OPTIONAL"
-        "VERSION;FETCH_URL;FETCH_SHA256;FETCH_GIT;FETCH_TAG;FOUND_VAR"
+        "VERSION;FETCH_URL;FETCH_SHA256;FETCH_GIT;FETCH_TAG;FOUND_VAR;INSTALL_HINT"
         "COMPONENTS;FIND_ARGS;FETCH_CACHE")
 
     if(dd_UNPARSED_ARGUMENTS)
@@ -199,13 +205,16 @@ function(dev_dependency name)
         set(status "local source (${override})")
     elseif(NOT dd_FETCH_URL AND NOT dd_FETCH_GIT)
         set(${dd_FOUND_VAR} FALSE PARENT_SCOPE)
-        _dev_dependency_unavailable(${name} "${dd_REQUIRED}" "not installed" "")
+        _dev_dependency_unavailable(${name} "${dd_REQUIRED}" "not installed" "" "${dd_INSTALL_HINT}")
         return()
     endif()
 
     # --- 3. fetch ------------------------------------------------------------
+    set(env_offline "$ENV{BUILDKIT_OFFLINE}")
+    set(env_disconnected "$ENV{FETCHCONTENT_FULLY_DISCONNECTED}")
     if(BUILDKIT_OFFLINE OR FETCHCONTENT_FULLY_DISCONNECTED
-       OR "$CACHE{FETCHCONTENT_FULLY_DISCONNECTED}")
+       OR "$CACHE{FETCHCONTENT_FULLY_DISCONNECTED}"
+       OR env_offline OR env_disconnected)
         set(offline TRUE)
     else()
         set(offline FALSE)
@@ -363,7 +372,7 @@ function(dev_dependency name)
 
     if(NOT ok)
         set(${dd_FOUND_VAR} FALSE PARENT_SCOPE)
-        _dev_dependency_unavailable(${name} "${dd_REQUIRED}" "${cause}" "${detail}")
+        _dev_dependency_unavailable(${name} "${dd_REQUIRED}" "${cause}" "${detail}" "${dd_INSTALL_HINT}")
         return()
     endif()
 

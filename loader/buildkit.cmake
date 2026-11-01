@@ -11,10 +11,11 @@
 #   3. a git fetch of BUILDKIT_REPOSITORY at BUILDKIT_TAG into
 #      ${CMAKE_BINARY_DIR}/_buildkit/src (populate only, nothing is built); the
 #      fetched tag is written to ${CMAKE_BINARY_DIR}/_buildkit/tag
-# and Buildkit.cmake is included. BUILDKIT_TAG (a tag, not a SHA) and
-# BUILDKIT_REPOSITORY may be set before including.
+# and Buildkit.cmake is included. BUILDKIT_TAG (a tag or a branch name, not a
+# commit SHA) and BUILDKIT_REPOSITORY may be set before including.
 #
-# Offline (BUILDKIT_OFFLINE or FETCHCONTENT_FULLY_DISCONNECTED ON), or a remote
+# Offline (BUILDKIT_OFFLINE or FETCHCONTENT_FULLY_DISCONNECTED ON, as a cache
+# entry, a variable or an environment variable), or a remote
 # that does not answer a 30 s probe: an already fetched copy is reused when its
 # stamped tag equals BUILDKIT_TAG ("tag vX.Y.Z, cached"); another tag is a
 # FATAL_ERROR naming both. Without a copy it is a FATAL_ERROR too, because
@@ -60,7 +61,9 @@ else()
     endif()
     set(_bk_use_cache FALSE)
 
-    if(BUILDKIT_OFFLINE OR FETCHCONTENT_FULLY_DISCONNECTED)
+    set(_bk_env_offline "$ENV{BUILDKIT_OFFLINE}")
+    set(_bk_env_disc "$ENV{FETCHCONTENT_FULLY_DISCONNECTED}")
+    if(BUILDKIT_OFFLINE OR FETCHCONTENT_FULLY_DISCONNECTED OR _bk_env_offline OR _bk_env_disc)
         if(NOT _bk_cache)
             message(FATAL_ERROR
                 "buildkit: no local copy and offline mode is on. Set BUILDKIT_DIR to "
