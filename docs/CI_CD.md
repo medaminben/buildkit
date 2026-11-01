@@ -10,16 +10,38 @@ Jobs: `lint` (clang-format, CMake style, commitlint on PR commits), `build`
 (every compiler runs every preset: configure, build, `ctest --preset`) and
 `analysis` (clang-tidy and cppcheck, report only).
 
+`build` and `analysis` check buildkit out at `buildkit-ref` into `.buildkit` and
+export `BUILDKIT_DIR` for the configure, so lint, build and analysis use the same
+buildkit. A product needs no `BUILDKIT_TAG` default in its CMakeLists to build
+against an unreleased buildkit; it only sets `buildkit-ref`.
+
 | Input | Default | Meaning |
 |-------|---------|---------|
 | `presets` | `ci` | Presets to build and test, space or comma separated |
 | `compilers` | `gcc clang` | Compilers to run every preset with |
 | `apt-packages` | empty | Extra apt packages |
-| `lint` | `true` | Format, style and commitlint checks |
+| `lint` | `true` | Master switch: `false` turns off all three lint checks, `true` lets the next three decide |
+| `lint-format`, `lint-cmake`, `lint-commits` | `true` | clang-format, CMake style, commitlint on PR commits. Only used when `lint` is `true` |
+| `format-exclude` | empty | Git pathspec globs that clang-format skips, separated by spaces or newlines, e.g. `3rdparty/**`. Applied as `':(exclude)<glob>'` on `git ls-files` |
+| `xvfb` | `false` | Install `xvfb` and run ctest under `xvfb-run -a` (GUI tests) |
+| `configure-args` | empty | Arguments for `cmake --preset <preset>`, after the preset. Split at whitespace on purpose, so an argument cannot contain a space and quotes are not interpreted |
 | `static-analysis` | `true` | clang-tidy and cppcheck |
 | `coverage` | `false` | Also run the `coverage` preset (gcc) and upload the report |
 | `sanitizers` | `false` | Also run the `asan` preset (ASan and UBSan, gcc) |
-| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, `v2.0.0` | Source of the lint config and scripts |
+| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, `v2.0.0` | Source of buildkit: lint config and scripts, and `BUILDKIT_DIR` for the configure |
+
+Precedence of the lint switches: `lint: false` wins and disables everything, whatever
+`lint-format`, `lint-cmake` and `lint-commits` say. With `lint: true` each single input
+decides, and the job is skipped when all three are `false`.
+
+There is no hook for extra steps. A check such as an install smoke test belongs into the
+product as a ctest test (label it, for example, `install`), so that every preset and
+every compiler runs it:
+
+```cmake
+add_test(NAME install_smoke COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/ci/install-smoke.sh ${CMAKE_BINARY_DIR})
+set_tests_properties(install_smoke PROPERTIES LABELS install)
+```
 
 ```yaml
 # .github/workflows/ci.yml in the product
@@ -41,6 +63,8 @@ jobs:
       apt-packages: "libwxgtk3.2-dev"
       coverage: true
       sanitizers: true
+      xvfb: true
+      format-exclude: "3rdparty/**"
 ```
 
 Concurrency is set by the caller, not by the reusable workflow.
@@ -55,6 +79,8 @@ scanning enabled.
 |-------|---------|---------|
 | `preset` | `default` | Preset built for the analysis |
 | `apt-packages` | empty | Extra apt packages |
+| `configure-args` | empty | Arguments for `cmake --preset`, split at whitespace |
+| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, `v2.0.0` | Buildkit is checked out into `.buildkit` and exported as `BUILDKIT_DIR` |
 
 ```yaml
 jobs:

@@ -27,12 +27,13 @@ The loader finds buildkit in this order:
 1. `BUILDKIT_DIR` (cache entry or environment variable) with a `cmake/Buildkit.cmake` inside.
    A wrong path is a fatal error that names it.
 2. A sibling checkout `${CMAKE_SOURCE_DIR}/../buildkit`.
-3. A git fetch of `BUILDKIT_REPOSITORY` at `BUILDKIT_TAG` (default `v2.0.0`, a tag,
-   not a SHA) into `<binary dir>/_buildkit/src`, with the tag stamped in
-   `<binary dir>/_buildkit/tag`. Set `BUILDKIT_TAG` before the include to pin another tag.
+3. A git fetch of `BUILDKIT_REPOSITORY` at `BUILDKIT_TAG` (default `v2.0.0`; a tag or a
+   branch name, not a commit SHA) into `<binary dir>/_buildkit/src`, with the tag stamped in
+   `<binary dir>/_buildkit/tag`. Set `BUILDKIT_TAG` before the include to pin another tag or branch.
 
 It prints `buildkit: using <path> (local working copy | tag vX.Y.Z)`. With
-`BUILDKIT_OFFLINE` or `FETCHCONTENT_FULLY_DISCONNECTED` ON and no local copy it
+`BUILDKIT_OFFLINE` or `FETCHCONTENT_FULLY_DISCONNECTED` ON (cache, variable or
+environment variable) and no local copy it
 reuses a copy fetched earlier for the same tag (`tag vX.Y.Z, cached`; the same
 applies when the remote does not answer). A cached copy of another tag, or no
 copy at all, is an error, because buildkit itself is required; run
@@ -67,8 +68,9 @@ automatically; a product does `include(InstallConfig)` when it wants it.
 `dev_dependency(<Name> ...)` uses an installed copy first, else fetches it
 (archive with SHA-256, or git tag), else builds without it for `OPTIONAL`
 (the default) or stops with an error for `REQUIRED`. Both messages name the cause
-(not installed, no network, offline) and the bootstrap script. Offline mode
-(`BUILDKIT_OFFLINE` or `FETCHCONTENT_FULLY_DISCONNECTED`) never touches the
+(not installed, no network, offline) and the bootstrap script; `INSTALL_HINT "apt install libfoo-dev"`
+adds the package name to the `REQUIRED` error. Offline mode
+(`BUILDKIT_OFFLINE` or `FETCHCONTENT_FULLY_DISCONNECTED`, also as environment variables) never touches the
 network, and an unreachable host is detected by a 30 second probe instead of a
 long hang. Full syntax: header of `cmake/Dependency.cmake`.
 
