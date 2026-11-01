@@ -1,104 +1,75 @@
-# Migration guide (≤ 1.3 → 1.4)
+# Migrating a unitpro based product to buildkit
 
-This guide explains how to move an existing UnitPro-based tree onto the 1.4 boilerplate.
+This guide is for a product that copied unitpro's `cmake/` folder and sets
+`CMAKE_ROOT_NAME` (the legacy layout). Bowlingbox is the first adopter. The legacy
+layout keeps working: targets, aliases, headers and namespaces do not change.
 
-## Summary of breaking / notable changes
+## 1. Add the loader
 
-| Area | Before (≤ 1.3) | After (1.4) |
-|------|----------------|-------------|
-| Version | `1.3.0` | `1.4.0` |
-| Scaffold | Often only generated at configure time | `Core` committed; generator optional |
-| GoogleTest | `GIT_TAG main` | Pinned `v1.15.2` |
-| Network probe | Ping `www.google.com` | Removed; use `FETCHCONTENT_FULLY_DISCONNECTED` if needed |
-| Export headers | Written into source `include/` | Generated under the **build** tree |
-| Public include | `"UnitPro_Core_export.h"` (relative) | `<UnitPro/Core/UnitPro_Core_export.h>` |
-| Verbose build | Default `ON` | Default `OFF` |
-| Warnings | Global `-Wall -Werror` flags | Per-target via `buildkit_set_warnings` |
-| Generator module | `cmake/libraryGenerator.cmake` | `cmake/modules/LibraryGenerator.cmake` |
-| Install/export | Missing | `InstallConfig` + `UnitProConfig.cmake` |
-| Docs folder | Requirements PDFs | Architecture / contributing docs |
-| CI | None | GitHub Actions CI + release |
-
-## Step-by-step
-
-### 1. Update the root project
-
-- Bump `project(UnitPro VERSION …)` or rename `CMAKE_ROOT_NAME` if you forked under another brand.
-- Replace ad-hoc options with the 1.4 option set (`ENABLE_COVERAGE`, `GENERATE_SCAFFOLD`, …).
-- Point `CMAKE_MODULE_PATH` at both `cmake/` and `cmake/modules/`.
-
-### 2. Move custom CMake helpers
-
-| Old | New |
-|-----|-----|
-| Keep using `include(BuildUtils)` | Still valid |
-| `include(libraryGenerator)` | `include(LibraryGenerator)` (loaded from `Common.cmake`) |
-| Copy any local patches from old `libraryGenerator.cmake` into `cmake/modules/LibraryGenerator.cmake` | Prefer extending templates under `cmake/template/` |
-
-### 3. Fix export header includes
-
-In every public header:
-
-```cpp
-// old
-#include "UnitPro_Core_export.h"
-
-// new
-#include <UnitPro/Core/UnitPro_Core_export.h>
-```
-
-Remove tracked `*_export.h` files from the source tree; they are generated at build time and gitignored.
-
-### 4. Commit generated libraries you care about
-
-If your workflow only generated trees during configure:
-
-1. Configure once with `GENERATE_SCAFFOLD=ON`.
-2. Review `libraries/` and `applications/`.
-3. Commit the ones that are product code.
-4. Optionally set `GENERATE_SCAFFOLD=OFF` in CI for hermetic builds.
-
-### 5. Adopt presets and CI
-
-- Copy `CMakePresets.json`, `.clang-format`, `.clang-tidy`, `package.json`, and `.github/workflows/`.
-- Run `npm install` once per developer machine for hooks.
-- Ensure CI images install CMake ≥ 3.29 and a C++20 toolchain.
-
-### 6. Adjust application CMakeLists
-
-Avoid passing empty `UI` / `HEADERS` / `RESOURCES` keywords (CMake CMP0174). Prefer:
+Copy `loader/buildkit.cmake` from buildkit to `cmake/buildkit.cmake` and include
+it as the first thing after `cmake_minimum_required`, before `project()`:
 
 ```cmake
-create_application(
-    NAME         Core_Console
-    ENTRY        Console
-    SOURCES      Core_Console.cpp
-    DEPENDENCIES UnitPro::Core
-)
+cmake_minimum_required(VERSION 3.29)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/buildkit.cmake)
 ```
 
-### 7. Verify
+On your machine set `BUILDKIT_DIR` to the buildkit checkout (or keep a sibling
+folder `../buildkit`). CI and fresh clones fetch the pinned tag; set
+`BUILDKIT_TAG` before the include to choose another.
 
-```bash
-cmake --preset ci
-cmake --build --preset ci --parallel
-ctest --preset ci --output-on-failure
-```
+## 2. Delete the old copies
 
-## Decision log (why these changes)
+Remove these from the product's `cmake/` (buildkit provides them; the loader puts
+its folders on `CMAKE_MODULE_PATH`):
 
-1. **Pinned GoogleTest** — reproducible CI; `main` can break overnight.
-2. **No internet ping** — sandboxes and air-gapped agents fail otherwise.
-3. **Binary-dir export headers** — keeps the source tree clean and merge-friendly.
-4. **Committed Core scaffold** — template must build on a fresh clone without side effects.
-5. **Per-target warnings** — avoids forcing `-Werror` onto third-party FetchContent targets.
-6. **Install/export** — libraries become consumable components, not just in-repo targets.
-7. **Node only for hooks** — C++ remains the product; Commitlint/Husky are optional DX.
+- `BuildUtils.cmake`, `BuildLocation.cmake`, `DebugUtils.cmake`
+- `TestUtils.cmake`, GoogleTest support (`GTestSupport.cmake`)
+- `modules/CompilerWarnings.cmake`, `modules/Coverage.cmake`, `modules/LibraryGenerator.cmake`
+- any hand written `FetchContent` blocks for third-party code (see step 5)
 
-## Rollback
+Keep product specific files: `cmake/<Root>Config.cmake.in` (`InstallConfig` prefers it
+over buildkit's template), `cmake/configs/`, and the product's own templates.
 
-If you must stay on 1.3 behavior temporarily:
+## 3. Rename
 
-- Keep your old `libraryGenerator.cmake` and export-in-source layout.
-- Do not merge 1.4 CI until export includes and presets are updated.
-- Prefer a short-lived branch rather than mixing both layouts in `main`.
+- `<x>_set_warnings(target)` becomes `buildkit_set_warnings(target)`. The legacy layout keeps
+  the base warning level; set `BUILDKIT_STRICT_WARNINGS ON` to opt in to strict.
+- Version: replace the hand written version with
+  `buildkit_git_version(${CMAKE_CURRENT_SOURCE_DIR} <ROOT>_VERSION <ROOT>_VERSION_FULL FALLBACK <x.y.z>)`
+  before `project()`, and tag releases `vX.Y.Z`.
+- `include(InstallConfig)` stays an explicit include after the libraries are added.
+- Keep `CMAKE_ROOT_NAME` and `<ROOT>_RUNTIME_COMPONENT`; they select the legacy layout
+  and the install component.
+
+## 4. Presets
+
+Use the presets of `template/project/CMakePresets.json.in` (`default`, `debug`,
+`coverage`, `asan`, `ci`) with `binaryDir` `${sourceDir}/build/<name>`. Remove any
+`build-*` folder or in-tree build from the product and ignore `build/` in its `.gitignore`.
+
+## 5. Dependencies
+
+Replace direct `find_package` plus `FetchContent` code with `dev_dependency()`:
+installed first, then fetched, then built without (`OPTIONAL`) or an error
+(`REQUIRED`). `-DBUILDKIT_OFFLINE=ON` forbids any download.
+
+## 6. CI
+
+Replace the product's own workflows with callers of `ci.yml`, `codeql.yml` and
+`release.yml` (examples with permissions in [CI_CD.md](CI_CD.md)). Create the
+labels `semver:major`, `semver:minor`, `semver:patch` and `semver:none`, and
+a `Beta` branch if you use the beta flow. The installer workflow, if any, needs
+`on: workflow_dispatch`.
+
+## 7. Packaging and manual
+
+Use `buildkit_add_stage_target` and `buildkit_add_inno_installer` instead of
+local installer code. Product specific installer pieces stay in the product: a
+WIN32 `LICENSE` install, the `.iss` script and runtime data are passed through
+`INSTALL_SCRIPTS` and `ISS`. A user manual can use `buildkit_add_manual`.
+
+## 8. Verify
+
+Configure, build and run all tests with the `ci` preset. The test count and the
+executables must match the state before the migration.
