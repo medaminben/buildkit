@@ -11,7 +11,7 @@ include(CTest)
 find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
 
 # buildkit_add_fixture_test(NAME <n> DIR <dir> [ARGS <cmake args>...]
-#                           [EXPECT_FAIL] [EXPECT_OUTPUT <regex>] [BUILD])
+#                           [ENV <VAR=value>] [EXPECT_FAIL] [EXPECT_OUTPUT <regex>] [BUILD])
 #
 # Configures tests/<dir> into build/tests/<n> with -DBUILDKIT_DIR=<buildkit>.
 # The binary dir is removed first so every run starts from a clean cache.
@@ -26,7 +26,7 @@ find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
 # ARGS are joined with '|' for transport, so an ARGS element must not contain
 # '|' or ';' (CMake lists split on ';'); spaces inside an element are preserved.
 function(buildkit_add_fixture_test)
-    cmake_parse_arguments(PARSE_ARGV 0 ft "EXPECT_FAIL;BUILD" "NAME;DIR;EXPECT_OUTPUT" "ARGS")
+    cmake_parse_arguments(PARSE_ARGV 0 ft "EXPECT_FAIL;BUILD" "NAME;DIR;EXPECT_OUTPUT;ENV" "ARGS")
     if(NOT ft_NAME OR NOT ft_DIR)
         message(FATAL_ERROR "buildkit_add_fixture_test: NAME and DIR are required")
     endif()
@@ -55,6 +55,7 @@ function(buildkit_add_fixture_test)
             -DFIXTURE_BIN=${bin}
             -DBUILDKIT_DIR=${CMAKE_SOURCE_DIR}
             "-DFIXTURE_ARGS=${joined}"
+            "-DFIXTURE_ENV=${ft_ENV}"
             -DEXPECT_FAIL=${ft_EXPECT_FAIL}
             "-DEXPECT_OUTPUT=${ft_EXPECT_OUTPUT}"
             -DBUILD=${ft_BUILD}
@@ -62,7 +63,8 @@ function(buildkit_add_fixture_test)
 endfunction()
 
 buildkit_add_fixture_test(NAME entry DIR entry EXPECT_OUTPUT "BUILDKIT_ROOT=/")
-# A product's own cmake/Common.cmake is not shadowed by buildkit (there is none).
+# Guard: buildkit ships no Common.cmake, so a product's own `include(Common)` is
+# never shadowed (fixture checks both module folders and then includes the product's).
 buildkit_add_fixture_test(NAME module_path DIR module_path
     EXPECT_OUTPUT "MODULE_PATH_OK product-common")
 
@@ -88,11 +90,11 @@ buildkit_add_fixture_test(NAME dependency_offline_optional DIR dependency/offlin
     EXPECT_OUTPUT "NoSuchGTestName not available \\(not installed,.*offline\\):.*building.*without")
 # The environment alone must switch offline mode on (BUILDKIT_OFFLINE, FETCHCONTENT_FULLY_DISCONNECTED).
 buildkit_add_fixture_test(NAME dependency_offline_env DIR dependency/offline_optional
+    ENV BUILDKIT_OFFLINE=1
     EXPECT_OUTPUT "NoSuchGTestName not available \\(not installed,.*offline\\):.*building.*without")
 buildkit_add_fixture_test(NAME dependency_disconnected_env DIR dependency/offline_optional
+    ENV FETCHCONTENT_FULLY_DISCONNECTED=ON
     EXPECT_OUTPUT "NoSuchGTestName not available \\(not installed,.*offline\\):.*building.*without")
-set_tests_properties(dependency_offline_env PROPERTIES ENVIRONMENT "BUILDKIT_OFFLINE=1")
-set_tests_properties(dependency_disconnected_env PROPERTIES ENVIRONMENT "FETCHCONTENT_FULLY_DISCONNECTED=ON")
 set_tests_properties(dependency_offline_env dependency_disconnected_env PROPERTIES TIMEOUT 35)
 buildkit_add_fixture_test(NAME dependency_fetch_url DIR dependency/fetch_url
     EXPECT_OUTPUT "tiny: fetched")

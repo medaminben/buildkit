@@ -80,7 +80,7 @@ function(make_remote)
     set(REMOTE "file://${d}" PARENT_SCOPE)
 endfunction()
 
-set(unset_env --unset=BUILDKIT_DIR)
+set(unset_env --unset=BUILDKIT_DIR --unset=BUILDKIT_OFFLINE --unset=FETCHCONTENT_FULLY_DISCONNECTED)
 re_escape(repo_re "${BUILDKIT_REPO}")
 re_escape(work_re "${work}")
 set(src_re "${work_re}/bin/_buildkit/src")

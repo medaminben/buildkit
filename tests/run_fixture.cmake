@@ -3,10 +3,20 @@
 #   FIXTURE_ARGS   extra configure args joined with '|' (spaces inside one arg are kept)
 #   EXPECT_FAIL    ON: configure must fail; otherwise it must succeed
 #   EXPECT_OUTPUT  regex that stdout+stderr of the configure must match
+#   FIXTURE_ENV    VAR=value set for the configure; BUILDKIT_OFFLINE and
+#                  FETCHCONTENT_FULLY_DISCONNECTED are always unset first, so a
+#                  developer's shell cannot change a test
 #   BUILD          ON: after a successful configure run `cmake --build` and
 #                  `ctest --test-dir` on the fixture; any failure fails
 # Any mismatch ends in FATAL_ERROR (the test fails).
 file(REMOVE_RECURSE "${FIXTURE_BIN}")
+
+# Every process below (configure, build, nested ctest) inherits this environment.
+unset(ENV{BUILDKIT_OFFLINE})
+unset(ENV{FETCHCONTENT_FULLY_DISCONNECTED})
+if(FIXTURE_ENV MATCHES "^([^=]+)=(.*)$")
+    set(ENV{${CMAKE_MATCH_1}} "${CMAKE_MATCH_2}")
+endif()
 
 set(args)
 if(FIXTURE_ARGS)
