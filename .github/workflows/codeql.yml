@@ -11,7 +11,10 @@
 #       with:
 #         preset: default
 #         apt-packages: "libfoo-dev"
+#         configure-args: "-DMY_OPTION=ON"
 #
+# Buildkit is checked out at buildkit-ref into .buildkit and exported as
+# BUILDKIT_DIR for the configure (the same buildkit as ci.yml uses).
 # Private repositories need code scanning enabled.
 name: CodeQL (reusable)
 
@@ -26,6 +29,18 @@ on:
         description: "Extra apt packages, separated by spaces"
         type: string
         default: ""
+      configure-args:
+        description: "Extra arguments for cmake --preset, after the preset. Split at whitespace (no quoting)"
+        type: string
+        default: ""
+      buildkit-repository:
+        description: "Repository that provides buildkit"
+        type: string
+        default: "medaminben/buildkit"
+      buildkit-ref:
+        description: "Tag, branch or SHA of buildkit"
+        type: string
+        default: "v2.0.0"
 
 defaults:
   run:
@@ -40,6 +55,11 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.buildkit-repository }}
+          ref: ${{ inputs.buildkit-ref }}
+          path: .buildkit
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -59,9 +79,13 @@ jobs:
       - name: Build for CodeQL
         env:
           PRESET: ${{ inputs.preset }}
+          CONFIGURE_ARGS: ${{ inputs.configure-args }}
         run: |
           set -euo pipefail
-          cmake --preset "$PRESET"
+          export BUILDKIT_DIR="$GITHUB_WORKSPACE/.buildkit"
+          # Split at whitespace on purpose (no quoting).
+          read -r -a preset_opts <<< "$CONFIGURE_ARGS"
+          cmake --preset "$PRESET" "${preset_opts[@]}"
           cmake --build --preset "$PRESET" --parallel
       - uses: github/codeql-action/analyze@v3
         with:

@@ -15,13 +15,26 @@
 #         apt-packages: "libfoo-dev"
 #         coverage: true
 #         sanitizers: true
+#         xvfb: true               # ctest under xvfb-run (GUI tests)
+#         format-exclude: "3rdparty/**"
+#         configure-args: "-DMY_OPTION=ON"
 #
 # Jobs:
-#   lint     clang-format, cmake style and commitlint on PR commits (input lint).
+#   lint     clang-format, cmake style and commitlint on PR commits. Each check
+#            has its own input (lint-format, lint-cmake, lint-commits, default
+#            true). `lint` is the master switch: lint: false turns all three
+#            off whatever the single inputs say; with lint: true (default) each
+#            single input decides. The job is skipped when nothing is enabled.
+#            format-exclude removes paths from the clang-format check.
 #   build    every compiler runs every preset in a loop inside one job (one
 #            toolchain setup instead of one per matrix cell), as configure,
 #            build and ctest --preset. coverage and sanitizers add the presets
-#            coverage and asan once, with gcc.
+#            coverage and asan once, with gcc. Buildkit is checked out at
+#            buildkit-ref into .buildkit and exported as BUILDKIT_DIR for the
+#            configure, so lint, build and analysis use the same buildkit and a
+#            product needs no BUILDKIT_TAG default. Extra checks (an install
+#            smoke test, say) belong into the product as ctest tests, so every
+#            preset runs them; there is no hook for extra steps.
 #   analysis clang-tidy and cppcheck, report only (warnings, never a failure).
 #
 # CodeQL lives in its own workflow, codeql.yml, so that this one does not need
@@ -44,9 +57,33 @@ on:
         type: string
         default: ""
       lint:
-        description: "Run the clang-format check, the cmake style check and commitlint on PR commits"
+        description: "Master switch for the three lint checks: false turns all of them off, true lets lint-format, lint-cmake and lint-commits decide"
         type: boolean
         default: true
+      lint-format:
+        description: "Run the clang-format check (needs lint: true)"
+        type: boolean
+        default: true
+      lint-cmake:
+        description: "Run the cmake style check (needs lint: true)"
+        type: boolean
+        default: true
+      lint-commits:
+        description: "Run commitlint on PR commits (needs lint: true)"
+        type: boolean
+        default: true
+      format-exclude:
+        description: "Git pathspec globs that clang-format skips, separated by spaces or newlines, e.g. 3rdparty/**"
+        type: string
+        default: ""
+      xvfb:
+        description: "Install xvfb and run ctest under xvfb-run -a (for GUI tests)"
+        type: boolean
+        default: false
+      configure-args:
+        description: "Extra arguments for cmake --preset, after the preset. Split at whitespace (no quoting), e.g. -DFOO=ON -DBAR=1"
+        type: string
+        default: ""
       static-analysis:
         description: "Run clang-tidy and cppcheck (report only)"
         type: boolean
@@ -77,7 +114,7 @@ defaults:
 
 jobs:
   lint:
-    if: inputs.lint
+    if: inputs.lint && (inputs.lint-format || inputs.lint-cmake || inputs.lint-commits)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,8 +129,12 @@ jobs:
         with:
           node-version: "22"
       - name: Install clang-format
+        if: inputs.lint-format
         run: sudo apt-get update && sudo apt-get install -y clang-format
       - name: Check formatting
+        if: inputs.lint-format
+        env:
+          FORMAT_EXCLUDE: ${{ inputs.format-exclude }}
         run: |
           set -euo pipefail
           if [ -e .clang-format ]; then
@@ -102,11 +143,16 @@ jobs:
             config="$(readlink -f .buildkit/.clang-format)"
           fi
           echo "Using $config"
-          mapfile -t files < <(git ls-files '*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx')
+          # Excludes are git pathspecs, one ':(exclude)<glob>' each.
+          read -r -a excludes <<< "$FORMAT_EXCLUDE"
+          specs=('*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx')
+          for glob in "${excludes[@]}"; do specs+=(":(exclude)$glob"); done
+          mapfile -t files < <(git ls-files -- "${specs[@]}")
           if ((${#files[@]})); then
             clang-format --style="file:$config" --dry-run --Werror "${files[@]}"
           fi
       - name: CMake style check
+        if: inputs.lint-cmake
         run: |
           set -euo pipefail
           mapfile -t files < <(git ls-files '*.cmake' '*CMakeLists.txt')
@@ -114,7 +160,7 @@ jobs:
             node .buildkit/scripts/check-cmake-style.mjs "${files[@]}"
           fi
       - name: Commitlint (PR commits)
-        if: github.event_name == 'pull_request'
+        if: inputs.lint-commits && github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -139,6 +185,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.buildkit-repository }}
+          ref: ${{ inputs.buildkit-ref }}
+          path: .buildkit
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -147,6 +198,7 @@ jobs:
           APT_PACKAGES: ${{ inputs.apt-packages }}
           COMPILERS: ${{ inputs.compilers }}
           WITH_COVERAGE: ${{ inputs.coverage }}
+          WITH_XVFB: ${{ inputs.xvfb }}
         run: |
           set -euo pipefail
           # Products need cmake >= 3.29, which the ubuntu apt cmake may not have.
@@ -154,6 +206,7 @@ jobs:
           packages=(ninja-build g++)
           if [[ "$COMPILERS" == *clang* ]]; then packages+=(clang-18); fi
           if [ "$WITH_COVERAGE" = "true" ]; then packages+=(lcov); fi
+          if [ "$WITH_XVFB" = "true" ]; then packages+=(xvfb); fi
           read -r -a extra <<< "$APT_PACKAGES"
           sudo apt-get update
           sudo apt-get install -y "${packages[@]}" "${extra[@]}"
@@ -169,12 +222,20 @@ jobs:
           COMPILERS: ${{ inputs.compilers }}
           WITH_COVERAGE: ${{ inputs.coverage }}
           WITH_SANITIZERS: ${{ inputs.sanitizers }}
+          WITH_XVFB: ${{ inputs.xvfb }}
+          CONFIGURE_ARGS: ${{ inputs.configure-args }}
         run: |
           set -euo pipefail
+          # The same buildkit as lint and analysis, whatever the product's loader defaults say.
+          export BUILDKIT_DIR="$GITHUB_WORKSPACE/.buildkit"
           preset_text="${PRESETS//,/ }"
           compiler_text="${COMPILERS//,/ }"
           read -r -a preset_list <<< "$preset_text"
           read -r -a compiler_list <<< "$compiler_text"
+          # configure-args is split at whitespace on purpose (no quoting).
+          read -r -a preset_opts <<< "$CONFIGURE_ARGS"
+          runner=()
+          if [ "$WITH_XVFB" = "true" ]; then runner=(xvfb-run -a); fi
           extras=()
           if [ "$WITH_COVERAGE" = "true" ]; then extras+=(coverage); fi
           if [ "$WITH_SANITIZERS" = "true" ]; then extras+=(asan); fi
@@ -182,9 +243,9 @@ jobs:
           run_preset() {
             local preset="$1"
             echo "::group::$preset with $CXX"
-            cmake --fresh --preset "$preset"
+            cmake --fresh --preset "$preset" "${preset_opts[@]}"
             cmake --build --preset "$preset" --parallel
-            ctest --preset "$preset" --output-on-failure
+            "${runner[@]}" ctest --preset "$preset" --output-on-failure
             echo "::endgroup::"
           }
 
@@ -244,7 +305,12 @@ jobs:
         env:
           CC: clang-18
           CXX: clang++-18
-        run: cmake --preset ci
+          CONFIGURE_ARGS: ${{ inputs.configure-args }}
+        run: |
+          set -euo pipefail
+          export BUILDKIT_DIR="$GITHUB_WORKSPACE/.buildkit"
+          read -r -a preset_opts <<< "$CONFIGURE_ARGS"
+          cmake --preset ci "${preset_opts[@]}"
       - name: clang-tidy (report only)
         run: |
           set -uo pipefail
