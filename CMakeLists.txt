@@ -106,3 +106,16 @@ buildkit_add_fixture_test(NAME gtest_off DIR gtest/off EXPECT_OUTPUT "GTEST_UNTO
 add_test(NAME version
     COMMAND ${CMAKE_COMMAND} -DBUILDKIT_DIR=${CMAKE_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/tests/version/run.cmake)
+
+# create_library / generate_libraries layouts (cmake/BuildUtils.cmake,
+# cmake/modules/LibraryGenerator.cmake) and the project templates.
+buildkit_add_fixture_test(NAME layout_legacy DIR layout/legacy BUILD
+    EXPECT_OUTPUT "LAYOUT_LEGACY_OK")
+buildkit_add_fixture_test(NAME layout_flat DIR layout/flat BUILD
+    EXPECT_OUTPUT "LAYOUT_FLAT_OK")
+buildkit_add_fixture_test(NAME layout_generate DIR layout/generate BUILD
+    EXPECT_OUTPUT "LAYOUT_GENERATE_OK")
+buildkit_add_fixture_test(NAME layout_generate_legacy DIR layout/generate_legacy BUILD
+    EXPECT_OUTPUT "LAYOUT_GENERATE_LEGACY_OK")
+buildkit_add_fixture_test(NAME layout_project DIR layout/project BUILD
+    EXPECT_OUTPUT "LAYOUT_PROJECT_OK")

@@ -22,6 +22,10 @@ function(buildkit_use_gtest)
     else()
         set(mode OPTIONAL)
     endif()
+    # A fetched GoogleTest is linked statically even when the product builds
+    # shared libraries (as Bowlingbox's GTestSupport did). This normal
+    # variable lives in this function only; the product's cache is untouched.
+    set(BUILD_SHARED_LIBS OFF)
     dev_dependency(GTest VERSION 1.15 ${mode}
         FETCH_GIT https://github.com/google/googletest.git FETCH_TAG v1.15.2
         FETCH_CACHE INSTALL_GTEST=OFF gtest_force_shared_crt=ON

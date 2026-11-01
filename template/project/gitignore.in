@@ -1,0 +1,25 @@
+# Build trees: every preset builds into build/<preset>
+/build/
+CMakeUserPresets.json
+compile_commands.json
+
+# Generated export headers belong in the build tree
+*_export.h
+
+# Tools and editors
+.cache/
+.idea/
+.vscode/
+*.user
+CMakeLists.txt.user*
+
+# Coverage
+*.gcda
+*.gcno
+*.gcov
+*.profraw
+*.profdata
+
+# OS
+.DS_Store
+Thumbs.db

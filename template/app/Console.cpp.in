@@ -1,0 +1,10 @@
+#include <${lib_INCLUDE_DIR}/${lib_NAME}.h>
+
+#include <iostream>
+
+int main() {
+    std::cout << "${lib_NAME} console sample\n";
+    std::cout << "6 * 6 = " << ${lib_NAMESPACE}::multiply(6, 6) << '\n';
+    std::cout << "The answer is " << ${lib_NAMESPACE}::get_the_answer() << '\n';
+    return 0;
+}

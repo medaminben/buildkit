@@ -13,7 +13,7 @@ This guide explains how to move an existing UnitPro-based tree onto the 1.4 boil
 | Export headers | Written into source `include/` | Generated under the **build** tree |
 | Public include | `"UnitPro_Core_export.h"` (relative) | `<UnitPro/Core/UnitPro_Core_export.h>` |
 | Verbose build | Default `ON` | Default `OFF` |
-| Warnings | Global `-Wall -Werror` flags | Per-target via `unitpro_set_warnings` |
+| Warnings | Global `-Wall -Werror` flags | Per-target via `buildkit_set_warnings` |
 | Generator module | `cmake/libraryGenerator.cmake` | `cmake/modules/LibraryGenerator.cmake` |
 | Install/export | Missing | `InstallConfig` + `UnitProConfig.cmake` |
 | Docs folder | Requirements PDFs | Architecture / contributing docs |
