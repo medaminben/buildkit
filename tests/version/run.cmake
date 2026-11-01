@@ -72,6 +72,28 @@ git("${root}/other_tags" tag v9.9.9-rc.1)
 git("${root}/other_tags" tag release-7)
 check("${root}/other_tags" 1.2.3 "^1\\.2\\.3\\+1\\.g[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]$")
 
+# stable and beta on one commit, both creation orders
+new_repo(both1)
+git("${root}/both1" tag v1.6.0)
+git("${root}/both1" tag v1.6.0-beta.3)
+check("${root}/both1" 1.6.0 "^1\\.6\\.0$")
+new_repo(both2)
+git("${root}/both2" tag v1.6.0-beta.3)
+git("${root}/both2" tag v1.6.0)
+check("${root}/both2" 1.6.0 "^1\\.6\\.0$")
+
+# betas of one version: highest N wins (10 > 2)
+new_repo(betas)
+git("${root}/betas" tag v1.6.0-beta.10)
+git("${root}/betas" tag v1.6.0-beta.2)
+check("${root}/betas" 1.6.0 "^1\\.6\\.0-beta\\.10$")
+
+# leading zeros are not versions
+new_repo(zeros)
+git("${root}/zeros" tag v01.2.3)
+git("${root}/zeros" tag v1.2.3-beta.01)
+check("${root}/zeros" 5.0.0 "^5\\.0\\.0-dev$" FALLBACK 5.0.0)
+
 # no tags, with and without FALLBACK
 new_repo(untagged)
 check("${root}/untagged" 1.4.0 "^1\\.4\\.0-dev$" FALLBACK 1.4.0)
