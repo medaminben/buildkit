@@ -1,0 +1,37 @@
+# Tests buildkit itself: the harness and the workflow files.
+name: Self-test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install toolchain
+        run: |
+          python3 -m pip install "cmake==3.31.*" ninja
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++
+          cmake --version
+      - name: Configure the harness
+        run: cmake --preset tests
+      - name: Run the tests
+        run: ctest --preset tests -LE slow --output-on-failure
+
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint the workflows
+        run: docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.7

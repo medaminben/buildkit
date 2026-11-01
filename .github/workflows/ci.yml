@@ -1,136 +1,142 @@
-name: CI
+# Reusable CI workflow for buildkit based products.
+#
+# Caller example:
+#   jobs:
+#     ci:
+#       uses: medaminben/buildkit/.github/workflows/ci.yml@v2.0.0
+#       with:
+#         presets: "ci"            # space- or comma-separated, run one after another
+#         apt-packages: "libfoo-dev"
+#         coverage: true
+#         sanitizers: true
+#
+# Every preset runs as configure, build and test in a loop inside one job
+# (cmake --preset X, cmake --build --preset X, ctest --test-dir build/X).
+# A loop keeps one runner and one toolchain setup; a matrix would repeat them.
+name: CI (reusable)
 
 on:
-  push:
-    branches: [main, master, develop]
-  pull_request:
-    branches: [main, master, develop]
+  workflow_call:
+    inputs:
+      presets:
+        description: "Presets to build and test, separated by spaces or commas"
+        type: string
+        default: "ci"
+      apt-packages:
+        description: "Extra apt packages, separated by spaces"
+        type: string
+        default: ""
+      lint:
+        description: "Run the clang-format check and commitlint on PR commits"
+        type: boolean
+        default: true
+      coverage:
+        description: "Also run the coverage preset"
+        type: boolean
+        default: false
+      sanitizers:
+        description: "Also run the asan preset (ASan and UBSan)"
+        type: boolean
+        default: false
+      buildkit-repository:
+        description: "Repository that provides the lint config"
+        type: string
+        default: "medaminben/buildkit"
+      buildkit-ref:
+        description: "Tag, branch or SHA of buildkit"
+        type: string
+        default: "v2.0.0"
 
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
-  format:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install clang-format
-        run: sudo apt-get update && sudo apt-get install -y clang-format
-      - name: Check formatting
-        run: |
-          mapfile -t files < <(git ls-files '*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx')
-          if ((${#files[@]})); then
-            clang-format --dry-run --Werror "${files[@]}"
-          fi
-
   lint:
-    name: Lint
+    if: inputs.lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.buildkit-repository }}
+          ref: ${{ inputs.buildkit-ref }}
+          path: .buildkit
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: Check formatting
+        run: |
+          if [ -e .clang-format ]; then
+            config="$PWD/.clang-format"
+          else
+            config="$(readlink -f .buildkit/.clang-format)"
+          fi
+          echo "Using $config"
+          mapfile -t files < <(git ls-files '*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx')
+          if ((${#files[@]})); then
+            clang-format --style="file:$config" --dry-run --Werror "${files[@]}"
+          fi
       - uses: actions/setup-node@v4
+        if: github.event_name == 'pull_request'
         with:
           node-version: "22"
-      - name: Install JS tooling
-        run: npm install
-      - name: Commitlint (PR range)
+      - name: Commitlint (PR commits)
         if: github.event_name == 'pull_request'
-        run: |
-          npx commitlint --from "${{ github.event.pull_request.head.sha }}^" --to "${{ github.event.pull_request.head.sha }}" --verbose
-      - name: CMake style check
-        run: |
-          mapfile -t files < <(git ls-files '*.cmake' '*CMakeLists.txt')
-          node scripts/check-cmake-style.mjs "${files[@]}"
-      - name: Install clang-tidy and build tools
-        run: sudo apt-get update && sudo apt-get install -y clang-tidy cmake g++
-      - name: Configure for compile_commands
-        run: cmake --preset ci
-      - name: Run clang-tidy
-        run: |
-          mapfile -t files < <(git ls-files 'libraries/**/*.cpp' 'applications/**/*.cpp')
-          if ((${#files[@]})); then
-            clang-tidy -p build/ci "${files[@]}" --quiet || true
-          fi
-
-  build-test:
-    name: Build & Test (${{ matrix.compiler }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - compiler: gcc
-            cc: gcc
-            cxx: g++
-            packages: g++
-          - compiler: clang
-            cc: clang-18
-            cxx: clang++-18
-            packages: clang-18
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake lcov ${{ matrix.packages }}
-      - name: Configure
         env:
-          CC: ${{ matrix.cc }}
-          CXX: ${{ matrix.cxx }}
-        run: cmake --preset ci
-      - name: Build
-        run: cmake --build --preset ci --parallel
-      - name: Test
-        run: ctest --preset ci --output-on-failure
-      - name: Coverage report
-        if: matrix.compiler == 'gcc'
-        run: cmake --build --preset ci --target coverage
-      - name: Upload coverage HTML
-        if: matrix.compiler == 'gcc'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: build/ci/coverage/html
-          if-no-files-found: ignore
-      - name: Upload lcov info
-        if: matrix.compiler == 'gcc'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-lcov
-          path: build/ci/coverage/coverage.filtered.info
-          if-no-files-found: ignore
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          npm install --no-save --no-package-lock @commitlint/cli@19 @commitlint/config-conventional@19
+          config=""
+          for candidate in commitlint.config.cjs commitlint.config.js commitlint.config.mjs .commitlintrc.json .commitlintrc.js .commitlintrc.cjs; do
+            if [ -e "$candidate" ]; then config="$candidate"; break; fi
+          done
+          if [ -z "$config" ]; then config=".buildkit/lint/commitlint.config.cjs"; fi
+          echo "Using $config"
+          npx commitlint --config "$config" --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
 
-  security:
-    name: Security
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Install cppcheck
-        run: sudo apt-get update && sudo apt-get install -y cppcheck
-      - name: Run cppcheck
-        run: |
-          cppcheck --enable=all --inconclusive --std=c++20 \
-            --error-exitcode=1 \
-            --suppress=missingIncludeSystem \
-            --suppress=unmatchedSuppression \
-            -I libraries/Core/include \
-            libraries applications \
-            || true
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
         with:
-          languages: cpp
-      - name: Build for CodeQL
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install toolchain
+        env:
+          APT_PACKAGES: ${{ inputs.apt-packages }}
+          WITH_COVERAGE: ${{ inputs.coverage }}
         run: |
-          sudo apt-get install -y cmake g++
-          cmake --preset default
-          cmake --build --preset default --parallel
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+          # Products need cmake >= 3.29, which the ubuntu apt cmake may not have.
+          python3 -m pip install "cmake==3.31.*" ninja
+          packages=(ninja-build g++)
+          if [ "$WITH_COVERAGE" = "true" ]; then packages+=(lcov); fi
+          read -r -a extra <<< "$APT_PACKAGES"
+          sudo apt-get update
+          sudo apt-get install -y "${packages[@]}" "${extra[@]}"
+          cmake --version
+          cmake_version="$(cmake --version | head -n1 | awk '{print $3}')"
+          if [ "$(printf '%s\n3.29\n' "$cmake_version" | sort -V | head -n1)" != "3.29" ]; then
+            echo "::error::cmake $cmake_version is older than 3.29"
+            exit 1
+          fi
+      - name: Build and test the presets
+        env:
+          PRESETS: ${{ inputs.presets }}
+          WITH_COVERAGE: ${{ inputs.coverage }}
+          WITH_SANITIZERS: ${{ inputs.sanitizers }}
+        run: |
+          preset_text="${PRESETS//,/ }"
+          read -r -a list <<< "$preset_text"
+          if [ "$WITH_COVERAGE" = "true" ]; then list+=(coverage); fi
+          if [ "$WITH_SANITIZERS" = "true" ]; then list+=(asan); fi
+          for preset in "${list[@]}"; do
+            echo "::group::preset $preset"
+            cmake --preset "$preset"
+            cmake --build --preset "$preset" --parallel
+            ctest --test-dir "build/$preset" --output-on-failure
+            echo "::endgroup::"
+          done

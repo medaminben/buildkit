@@ -1,44 +1,107 @@
-name: Release
+# Reusable release workflow for buildkit based products.
+#
+# The caller triggers it when a pull request is closed:
+#   on:
+#     pull_request:
+#       types: [closed]
+#     workflow_dispatch:     # required when installer-workflow is used
+#   jobs:
+#     release:
+#       uses: medaminben/buildkit/.github/workflows/release.yml@v2.0.0
+#       permissions:
+#         contents: write
+#         actions: write
+#       with:
+#         installer-workflow: windows-installer.yml   # optional
+#
+# The job runs only for a merged pull request into main or Beta. It takes the
+# semver:* label of the PR, computes the next tag, tags the merge commit,
+# creates the GitHub release (a pre-release on Beta) and, when given, starts
+# the installer workflow of the caller on the new tag. The installer workflow
+# must have "on: workflow_dispatch" because it is started with gh workflow run.
+name: Release (reusable)
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_call:
+    inputs:
+      installer-workflow:
+        description: "Workflow file of the caller to run with the new tag (needs workflow_dispatch)"
+        type: string
+        default: ""
+      buildkit-repository:
+        description: "Repository that provides tools/release"
+        type: string
+        default: "medaminben/buildkit"
+      buildkit-ref:
+        description: "Tag, branch or SHA of buildkit"
+        type: string
+        default: "v2.0.0"
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   release:
-    name: Build & Publish Release
+    if: >-
+      github.event.pull_request.merged == true &&
+      (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'Beta')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake g++
-
-      - name: Configure
-        run: cmake --preset default -DCMAKE_INSTALL_PREFIX=$PWD/install
-
-      - name: Build
-        run: cmake --build --preset default --parallel
-
-      - name: Test
-        run: ctest --preset default --output-on-failure
-
-      - name: Install package tree
-        run: cmake --install build/default
-
-      - name: Package artifacts
-        run: |
-          tar -czf "unitpro-${GITHUB_REF_NAME}-linux-amd64.tar.gz" -C install .
-          echo "ARTIFACT=unitpro-${GITHUB_REF_NAME}-linux-amd64.tar.gz" >> "$GITHUB_ENV"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
-          files: ${{ env.ARTIFACT }}
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.buildkit-repository }}
+          ref: ${{ inputs.buildkit-ref }}
+          path: .buildkit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compute the tag
+        id: version
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git fetch --tags --force
+          stable="$(git tag --list 'v[0-9]*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)"
+          beta="$(git tag --list 'v[0-9]*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$' | head -n1 || true)"
+          echo "latest stable: '$stable', latest beta: '$beta', labels: '$LABELS', branch: $BRANCH"
+          tag="$(python3 -B -I .buildkit/tools/release/next_version.py \
+            --latest-stable "$stable" --latest-beta "$beta" \
+            --labels "$LABELS" --branch "$BRANCH")"
+          if [ -z "$tag" ]; then
+            echo "::notice::No release for this pull request (semver:none)."
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Tag and publish the release
+        if: steps.version.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$SHA" 2>/dev/null || true
+          previous="$(git describe --tags --abbrev=0 "$SHA" 2>/dev/null || true)"
+          if [ -n "$previous" ]; then
+            git log --format='- %s' "$previous..$SHA" > "$RUNNER_TEMP/notes.md"
+          else
+            git log --format='- %s' "$SHA" > "$RUNNER_TEMP/notes.md"
+          fi
+          git tag -a "$TAG" -m "Release $TAG" "$SHA"
+          git push origin "refs/tags/$TAG"
+          args=(--notes-file "$RUNNER_TEMP/notes.md" --target "$SHA" --title "$TAG")
+          if [ "$BRANCH" = "Beta" ]; then args+=(--prerelease); fi
+          gh release create "$TAG" "${args[@]}"
+      - name: Run the installer workflow
+        if: steps.version.outputs.tag != '' && inputs.installer-workflow != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          INSTALLER: ${{ inputs.installer-workflow }}
+        run: gh workflow run "$INSTALLER" --ref "$TAG"
