@@ -13,10 +13,16 @@
 #       else ${PROJECT_VERSION}. ISCC.exe is searched natively on Windows; on Linux it is
 #       run as 'wine ISCC.exe' with the path in the BUILDKIT_ISCC cache entry. When ISCC
 #       (or wine) is missing no target is created and a status message is printed.
+#       ISS is relative to CMAKE_CURRENT_SOURCE_DIR, OUTPUT_DIR to CMAKE_BINARY_DIR.
+#       DEFINES values are passed to ISCC as-is (/Dk=v): no Z: conversion under wine,
+#       and no ';' in a value (CMake list separator).
+#       Extra search locations for ISCC: set BUILDKIT_ISCC_HINTS (list of directories).
 #       Requires buildkit_add_stage_target(<app_target>) first.
+#
+# Note: the stage target installs the whole top-level install tree (CMAKE_BINARY_DIR),
+# not only <app_target>.
 include_guard(GLOBAL)
 
-set(BUILDKIT_ISCC "" CACHE FILEPATH "Path to Inno Setup's ISCC.exe (used with wine on Linux)")
 
 function(buildkit_add_stage_target app)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "STAGE_DIR" "INSTALL_SCRIPTS")
@@ -56,6 +62,8 @@ function(buildkit_add_inno_installer app)
     if(NOT arg_OUTPUT_DIR)
         set(arg_OUTPUT_DIR "${CMAKE_BINARY_DIR}/dist")
     endif()
+    cmake_path(ABSOLUTE_PATH arg_OUTPUT_DIR BASE_DIRECTORY "${CMAKE_BINARY_DIR}" NORMALIZE)
+    cmake_path(ABSOLUTE_PATH arg_ISS BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE)
     if(arg_VERSION)
         set(version "${arg_VERSION}")
     elseif(PROJECT_VERSION_FULL)
@@ -65,22 +73,31 @@ function(buildkit_add_inno_installer app)
     endif()
     get_target_property(stage ${app}_stage BUILDKIT_STAGE_DIR)
 
-    # Locate ISCC. A BUILDKIT_ISCC value that does not exist counts as not found.
+    # Locate ISCC. A user-set BUILDKIT_ISCC wins; if it does not exist it counts as
+    # not found (no silent fallback to a search). Otherwise search into a separate
+    # variable (a pre-seeded cache entry would make find_program skip the search)
+    # and remember the result in the cache.
     set(iscc "")
     set(runner "")
-    if(WIN32)
-        if(NOT BUILDKIT_ISCC)
-            find_program(BUILDKIT_ISCC NAMES ISCC.exe ISCC
-                PATHS "$ENV{ProgramFiles\(x86\)}/Inno Setup 6" "$ENV{ProgramFiles}/Inno Setup 6")
-        endif()
-        if(BUILDKIT_ISCC AND EXISTS "${BUILDKIT_ISCC}")
+    if(BUILDKIT_ISCC)
+        if(EXISTS "${BUILDKIT_ISCC}")
             set(iscc "${BUILDKIT_ISCC}")
         endif()
     else()
+        find_program(_buildkit_iscc NO_CACHE NAMES ISCC.exe ISCC
+            HINTS ${BUILDKIT_ISCC_HINTS}
+            PATHS "$ENV{ProgramFiles\(x86\)}/Inno Setup 6" "$ENV{ProgramFiles}/Inno Setup 6")
+        if(_buildkit_iscc)
+            set(iscc "${_buildkit_iscc}")
+            set(BUILDKIT_ISCC "${iscc}" CACHE FILEPATH "Path to Inno Setup's ISCC.exe" FORCE)
+        endif()
+    endif()
+    if(NOT WIN32 AND iscc)
         find_program(BUILDKIT_WINE wine)
-        if(BUILDKIT_WINE AND BUILDKIT_ISCC AND EXISTS "${BUILDKIT_ISCC}")
-            set(iscc "${BUILDKIT_ISCC}")
+        if(BUILDKIT_WINE)
             set(runner "${BUILDKIT_WINE}")
+        else()
+            set(iscc "")
         endif()
     endif()
     if(NOT iscc)
