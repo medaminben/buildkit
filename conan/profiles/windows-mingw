@@ -1,0 +1,14 @@
+[settings]
+os=Windows
+arch=x86_64
+compiler=gcc
+compiler.version=14
+compiler.threads=posix
+compiler.exception=seh
+compiler.cppstd=20
+build_type=Release
+
+[buildenv]
+CC=x86_64-w64-mingw32-gcc-posix
+CXX=x86_64-w64-mingw32-g++-posix
+RC=x86_64-w64-mingw32-windres

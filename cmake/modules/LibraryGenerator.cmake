@@ -23,8 +23,8 @@
 # generate_project(NAME <Name> DESTINATION <dir> [LIBRARIES <Lib>...]
 #                  [TEMPLATE_LOCATION <dir>])
 #   Writes <dir>/CMakeLists.txt, CMakePresets.json and .gitignore from
-#   template/project/ (files that exist are kept). The product then needs
-#   cmake/buildkit.cmake, the loader.
+#   template/project/ and copies loader/buildkit.cmake to
+#   <dir>/cmake/buildkit.cmake (files that exist are kept).
 #
 # Templates are configured with ${var} substitution; ${VAR_MARKER_START}x${VAR_MARKER_END}
 # writes a literal ${x} into the generated file.
@@ -233,5 +233,10 @@ function(generate_project)
         endif()
         configure_file("${prj_TEMPLATE_LOCATION}/project/${src}" "${prj_DESTINATION}/${dst}" @ONLY)
     endforeach()
+    # The product loader: a copy of buildkit's loader/buildkit.cmake.
+    if(NOT EXISTS "${prj_DESTINATION}/cmake/buildkit.cmake")
+        configure_file("${BUILDKIT_ROOT}/loader/buildkit.cmake"
+                       "${prj_DESTINATION}/cmake/buildkit.cmake" COPYONLY)
+    endif()
     message(STATUS "generate_project: ${prj_NAME} written to ${prj_DESTINATION}")
 endfunction()

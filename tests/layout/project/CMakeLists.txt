@@ -10,15 +10,18 @@ include(CTest)
 set(product ${CMAKE_BINARY_DIR}/Gamma)
 generate_project(NAME Gamma DESTINATION ${product} LIBRARIES Gamma)
 
-# Stand-in for the product loader (loader/buildkit.cmake, a later task).
-file(WRITE ${product}/cmake/buildkit.cmake
-    "include(\"${BUILDKIT_DIR}/cmake/Buildkit.cmake\")\n")
-
-foreach(f CMakeLists.txt CMakePresets.json .gitignore)
+foreach(f CMakeLists.txt CMakePresets.json .gitignore cmake/buildkit.cmake)
     if(NOT EXISTS ${product}/${f})
         message(FATAL_ERROR "generate_project did not write ${f}")
     endif()
 endforeach()
+
+# The loader is a verbatim copy of the real one.
+file(READ ${BUILDKIT_DIR}/loader/buildkit.cmake real_loader)
+file(READ ${product}/cmake/buildkit.cmake product_loader)
+if(NOT real_loader STREQUAL product_loader)
+    message(FATAL_ERROR "cmake/buildkit.cmake is not a copy of loader/buildkit.cmake")
+endif()
 
 file(READ ${product}/CMakePresets.json presets)
 set(names)
@@ -49,5 +52,8 @@ foreach(preset ci asan)
     add_test(NAME product_${preset}
         COMMAND ${CMAKE_COMMAND} -DPRODUCT=${product} -DPRESET=${preset}
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/run_preset.cmake)
+    # The generated product finds buildkit through the real loader.
+    set_tests_properties(product_${preset} PROPERTIES
+        ENVIRONMENT "BUILDKIT_DIR=${BUILDKIT_DIR}")
 endforeach()
 message(STATUS "LAYOUT_PROJECT_OK")

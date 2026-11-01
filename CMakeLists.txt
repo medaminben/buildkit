@@ -122,6 +122,13 @@ buildkit_add_fixture_test(NAME layout_generate_legacy DIR layout/generate_legacy
 buildkit_add_fixture_test(NAME layout_project DIR layout/project BUILD
     EXPECT_OUTPUT "LAYOUT_PROJECT_OK")
 
+# Loader (loader/buildkit.cmake). The tag-fetch path is verified after the repo rename.
+foreach(case local env sibling bad_dir offline twice)
+    add_test(NAME loader_${case}
+        COMMAND ${CMAKE_COMMAND} -DCASE=${case} -DBUILDKIT_REPO=${CMAKE_SOURCE_DIR}
+                -P ${CMAKE_SOURCE_DIR}/tests/loader/run_case.cmake)
+endforeach()
+
 # Packaging (cmake/Packaging.cmake): stage target; no ISCC on this machine, so the
 # installer target must be absent with a status message.
 buildkit_add_fixture_test(NAME packaging DIR packaging BUILD
