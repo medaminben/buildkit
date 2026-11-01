@@ -29,10 +29,12 @@
 #   build    every compiler runs every preset in a loop inside one job (one
 #            toolchain setup instead of one per matrix cell), as configure,
 #            build and ctest --preset. coverage and sanitizers add the presets
-#            coverage and asan once, with gcc. Buildkit is checked out at
-#            buildkit-ref into .buildkit and exported as BUILDKIT_DIR for the
-#            configure, so lint, build and analysis use the same buildkit and a
-#            product needs no BUILDKIT_TAG default. Extra checks (an install
+#            coverage and asan once, with gcc. With buildkit-ref set, buildkit is
+#            checked out at that ref into .buildkit and exported as BUILDKIT_DIR
+#            for the configure, so lint, build and analysis use the same buildkit
+#            and a pre-release adopter needs no BUILDKIT_TAG default. With
+#            buildkit-ref empty (default) the product's own BUILDKIT_TAG pin is
+#            honoured; lint then uses v2.0.0. Extra checks (an install
 #            smoke test, say) belong into the product as ctest tests, so every
 #            preset runs them; there is no hook for extra steps.
 #   analysis clang-tidy and cppcheck, report only (warnings, never a failure).
@@ -101,9 +103,9 @@ on:
         type: string
         default: "medaminben/buildkit"
       buildkit-ref:
-        description: "Tag, branch or SHA of buildkit"
+        description: "Tag, branch or SHA of buildkit to check out and use (BUILDKIT_DIR). Empty: the product's own pin is used; lint then uses v2.0.0"
         type: string
-        default: "v2.0.0"
+        default: ""
 
 permissions:
   contents: read
@@ -123,7 +125,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ${{ inputs.buildkit-repository }}
-          ref: ${{ inputs.buildkit-ref }}
+          ref: ${{ inputs.buildkit-ref || 'v2.0.0' }}
           path: .buildkit
       - uses: actions/setup-node@v4
         with:
@@ -144,7 +146,8 @@ jobs:
           fi
           echo "Using $config"
           # Excludes are git pathspecs, one ':(exclude)<glob>' each.
-          read -r -a excludes <<< "$FORMAT_EXCLUDE"
+          exclude_text="${FORMAT_EXCLUDE//$'\n'/ }"
+          read -r -a excludes <<< "$exclude_text"
           specs=('*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx')
           for glob in "${excludes[@]}"; do specs+=(":(exclude)$glob"); done
           mapfile -t files < <(git ls-files -- "${specs[@]}")
@@ -186,6 +189,7 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/checkout@v4
+        if: inputs.buildkit-ref != ''
         with:
           repository: ${{ inputs.buildkit-repository }}
           ref: ${{ inputs.buildkit-ref }}
@@ -224,16 +228,18 @@ jobs:
           WITH_SANITIZERS: ${{ inputs.sanitizers }}
           WITH_XVFB: ${{ inputs.xvfb }}
           CONFIGURE_ARGS: ${{ inputs.configure-args }}
+          BUILDKIT_REF: ${{ inputs.buildkit-ref }}
         run: |
           set -euo pipefail
           # The same buildkit as lint and analysis, whatever the product's loader defaults say.
-          export BUILDKIT_DIR="$GITHUB_WORKSPACE/.buildkit"
+          if [ -n "$BUILDKIT_REF" ]; then export BUILDKIT_DIR="$GITHUB_WORKSPACE/.buildkit"; fi
           preset_text="${PRESETS//,/ }"
           compiler_text="${COMPILERS//,/ }"
           read -r -a preset_list <<< "$preset_text"
           read -r -a compiler_list <<< "$compiler_text"
           # configure-args is split at whitespace on purpose (no quoting).
-          read -r -a preset_opts <<< "$CONFIGURE_ARGS"
+          configure_text="${CONFIGURE_ARGS//$'\n'/ }"
+          read -r -a preset_opts <<< "$configure_text"
           runner=()
           if [ "$WITH_XVFB" = "true" ]; then runner=(xvfb-run -a); fi
           extras=()
@@ -285,6 +291,7 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/checkout@v4
+        if: inputs.buildkit-ref != ''
         with:
           repository: ${{ inputs.buildkit-repository }}
           ref: ${{ inputs.buildkit-ref }}
@@ -306,10 +313,12 @@ jobs:
           CC: clang-18
           CXX: clang++-18
           CONFIGURE_ARGS: ${{ inputs.configure-args }}
+          BUILDKIT_REF: ${{ inputs.buildkit-ref }}
         run: |
           set -euo pipefail
-          export BUILDKIT_DIR="$GITHUB_WORKSPACE/.buildkit"
-          read -r -a preset_opts <<< "$CONFIGURE_ARGS"
+          if [ -n "$BUILDKIT_REF" ]; then export BUILDKIT_DIR="$GITHUB_WORKSPACE/.buildkit"; fi
+          configure_text="${CONFIGURE_ARGS//$'\n'/ }"
+          read -r -a preset_opts <<< "$configure_text"
           cmake --preset ci "${preset_opts[@]}"
       - name: clang-tidy (report only)
         run: |
