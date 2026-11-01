@@ -70,19 +70,32 @@ buildkit_add_fixture_test(NAME harness_fail_output DIR harness/fail
     EXPECT_FAIL EXPECT_OUTPUT "bootstrap.sh")
 buildkit_add_fixture_test(NAME harness_build DIR harness/built BUILD)
 
-# dev_dependency (cmake/Dependency.cmake)
+# dev_dependency (cmake/Dependency.cmake). CMake wraps long messages, so the
+# regexes allow a line break (.*) between words.
 buildkit_add_fixture_test(NAME dependency_found DIR dependency/found
     EXPECT_OUTPUT "Threads.*installed")
 buildkit_add_fixture_test(NAME dependency_missing_optional DIR dependency/missing_optional
-    EXPECT_OUTPUT "NoSuchPkg not available")
+    EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*no network\\):.*building.*without")
 buildkit_add_fixture_test(NAME dependency_missing_required DIR dependency/missing_required
-    EXPECT_FAIL EXPECT_OUTPUT "NoSuchPkg not available.*redev/bootstrap/bootstrap\\.sh")
+    EXPECT_FAIL EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*no network\\):.*cannot.*build.*redev/bootstrap/bootstrap\\.sh")
 buildkit_add_fixture_test(NAME dependency_offline_optional DIR dependency/offline_optional
-    ARGS -DBUILDKIT_OFFLINE=ON EXPECT_OUTPUT "NoSuchGTestName not available")
+    ARGS -DBUILDKIT_OFFLINE=ON
+    EXPECT_OUTPUT "NoSuchGTestName not available \\(not installed,.*offline\\):.*building.*without")
 buildkit_add_fixture_test(NAME dependency_fetch_url DIR dependency/fetch_url
     EXPECT_OUTPUT "tiny: fetched")
+buildkit_add_fixture_test(NAME dependency_blackhole_optional DIR dependency/blackhole_optional
+    EXPECT_OUTPUT "NoSuchPkg not available")
+buildkit_add_fixture_test(NAME dependency_source_dir_override DIR dependency/source_dir_override
+    ARGS -DBUILDKIT_OFFLINE=ON
+         "-DFETCHCONTENT_SOURCE_DIR_TINY=${CMAKE_SOURCE_DIR}/tests/dependency/data/tiny-src"
+    EXPECT_OUTPUT "tiny: local source")
 set_tests_properties(dependency_missing_optional dependency_offline_optional
     PROPERTIES TIMEOUT 35)
+# A host that drops packets costs the full 30 s probe timeout.
+set_tests_properties(dependency_blackhole_optional PROPERTIES TIMEOUT 40 LABELS slow)
+add_test(NAME dependency_shallow_check
+    COMMAND ${CMAKE_COMMAND} -DBUILDKIT_DIR=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/tests/dependency/shallow_check.cmake)
 
 # GoogleTest via dev_dependency (cmake/GTestSupport.cmake, cmake/TestUtils.cmake)
 buildkit_add_fixture_test(NAME gtest DIR gtest/on BUILD

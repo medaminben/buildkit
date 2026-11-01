@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.29)
+project(tiny LANGUAGES NONE)
+add_library(tiny INTERFACE)
+if(TINY_FLAG)
+    set(TINY_SAW_FLAG ON CACHE INTERNAL "set when FETCH_CACHE reached this project")
+endif()
