@@ -25,6 +25,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from next_version import BETA_RE, VERSION_RE, next_version  # noqa: E402
 
+
 def _git(repo: str, *args: str) -> str:
     result = subprocess.run(
         ["git", "-C", repo, *args], capture_output=True, text=True, check=False

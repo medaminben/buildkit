@@ -239,7 +239,7 @@ jobs:
           python3 -m pip install "cmake==3.31.*"
           read -r -a extra <<< "$APT_PACKAGES"
           sudo apt-get update
-          sudo apt-get install -y ninja-build g++ clang-tidy-18 cppcheck "${extra[@]}"
+          sudo apt-get install -y ninja-build g++ clang-18 clang-tidy-18 cppcheck "${extra[@]}"
       - name: Configure for compile_commands.json
         env:
           CC: clang-18
@@ -268,7 +268,7 @@ jobs:
           if [ -e build/ci/compile_commands.json ]; then
             cppcheck --enable=all --inconclusive --std=c++20 --error-exitcode=1 \
               --suppress=missingIncludeSystem --suppress=unmatchedSuppression \
-              --project=build/ci/compile_commands.json || status=$?
+              -i build/ci/_deps --project=build/ci/compile_commands.json || status=$?
           fi
           if [ "$status" -ne 0 ]; then
             echo "::warning::cppcheck reported findings (exit $status); report only, not blocking"
