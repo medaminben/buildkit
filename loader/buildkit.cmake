@@ -8,13 +8,17 @@
 # buildkit is taken from, in this order:
 #   1. BUILDKIT_DIR (cache entry, e.g. -DBUILDKIT_DIR=..., or environment)
 #   2. ${CMAKE_SOURCE_DIR}/../buildkit, if it contains cmake/Buildkit.cmake
-#   3. a git fetch of BUILDKIT_REPO at BUILDKIT_TAG into
-#      ${CMAKE_BINARY_DIR}/_buildkit (populate only, nothing is built)
-# and Buildkit.cmake is included. BUILDKIT_TAG may be set before including.
+#   3. a git fetch of BUILDKIT_REPOSITORY at BUILDKIT_TAG into
+#      ${CMAKE_BINARY_DIR}/_buildkit/src (populate only, nothing is built); the
+#      fetched tag is written to ${CMAKE_BINARY_DIR}/_buildkit/tag
+# and Buildkit.cmake is included. BUILDKIT_TAG (a tag, not a SHA) and
+# BUILDKIT_REPOSITORY may be set before including.
 #
-# Offline (BUILDKIT_OFFLINE or FETCHCONTENT_FULLY_DISCONNECTED ON) with no
-# local copy is a FATAL_ERROR: buildkit itself is required. A fetch that cannot
-# reach the remote (30 s probe) is a FATAL_ERROR too.
+# Offline (BUILDKIT_OFFLINE or FETCHCONTENT_FULLY_DISCONNECTED ON), or a remote
+# that does not answer a 30 s probe: an already fetched copy is reused when its
+# stamped tag equals BUILDKIT_TAG ("tag vX.Y.Z, cached"); another tag is a
+# FATAL_ERROR naming both. Without a copy it is a FATAL_ERROR too, because
+# buildkit itself is required. Online with a changed tag, it is fetched again.
 #
 # Needs no compiler, so it works before project(). Idempotent.
 include_guard(GLOBAL)
@@ -22,8 +26,8 @@ include_guard(GLOBAL)
 if(NOT DEFINED BUILDKIT_TAG)
     set(BUILDKIT_TAG "v2.0.0")
 endif()
-if(NOT DEFINED BUILDKIT_REPO)
-    set(BUILDKIT_REPO "https://github.com/medaminben/buildkit.git")
+if(NOT DEFINED BUILDKIT_REPOSITORY)
+    set(BUILDKIT_REPOSITORY "https://github.com/medaminben/buildkit.git")
 endif()
 
 set(_bk_from "")
@@ -42,35 +46,65 @@ elseif(EXISTS "${CMAKE_SOURCE_DIR}/../buildkit/cmake/Buildkit.cmake")
     get_filename_component(BUILDKIT_DIR "${CMAKE_SOURCE_DIR}/../buildkit" ABSOLUTE)
     set(_bk_from "local working copy")
 else()
+    set(_bk_src   "${CMAKE_BINARY_DIR}/_buildkit/src")
+    set(_bk_stamp "${CMAKE_BINARY_DIR}/_buildkit/tag")
+    # A populated copy is reusable only for the tag it was fetched with.
+    set(_bk_cache FALSE)
+    set(_bk_cached_tag "")
+    if(EXISTS "${_bk_src}/cmake/Buildkit.cmake")
+        set(_bk_cache TRUE)
+        if(EXISTS "${_bk_stamp}")
+            file(READ "${_bk_stamp}" _bk_cached_tag)
+            string(STRIP "${_bk_cached_tag}" _bk_cached_tag)
+        endif()
+    endif()
+    set(_bk_use_cache FALSE)
+
     if(BUILDKIT_OFFLINE OR FETCHCONTENT_FULLY_DISCONNECTED)
-        message(FATAL_ERROR
-            "buildkit: no local copy and offline mode is on. Set BUILDKIT_DIR to "
-            "a buildkit checkout, or put one at ${CMAKE_SOURCE_DIR}/../buildkit. "
-            "Install the tools with redev/bootstrap/bootstrap.sh")
+        if(NOT _bk_cache)
+            message(FATAL_ERROR
+                "buildkit: no local copy and offline mode is on. Set BUILDKIT_DIR to "
+                "a buildkit checkout, or put one at ${CMAKE_SOURCE_DIR}/../buildkit. "
+                "Install the tools with redev/bootstrap/bootstrap.sh")
+        endif()
+        set(_bk_use_cache TRUE)
+    else()
+        find_package(Git QUIET)
+        if(NOT GIT_EXECUTABLE)
+            message(FATAL_ERROR
+                "buildkit: git not found, cannot fetch ${BUILDKIT_REPOSITORY}. Set "
+                "BUILDKIT_DIR or install git (redev/bootstrap/bootstrap.sh)")
+        endif()
+        # Probe first so a dead network fails in 30 s and not after minutes.
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -E env GIT_TERMINAL_PROMPT=0
+                    "${GIT_EXECUTABLE}" ls-remote --exit-code "${BUILDKIT_REPOSITORY}" "${BUILDKIT_TAG}"
+            RESULT_VARIABLE _bk_rc OUTPUT_QUIET ERROR_QUIET TIMEOUT 30)
+        if(NOT _bk_rc EQUAL 0)
+            if(NOT _bk_cache)
+                message(FATAL_ERROR
+                    "buildkit: cannot reach ${BUILDKIT_REPOSITORY} (tag ${BUILDKIT_TAG}). Set "
+                    "BUILDKIT_DIR to a local checkout (redev/bootstrap/bootstrap.sh)")
+            endif()
+            set(_bk_use_cache TRUE)
+        endif()
     endif()
-    set(_bk_src "${CMAKE_BINARY_DIR}/_buildkit/src")
-    find_package(Git QUIET)
-    if(NOT GIT_EXECUTABLE)
-        message(FATAL_ERROR
-            "buildkit: git not found, cannot fetch ${BUILDKIT_REPO}. Set "
-            "BUILDKIT_DIR or install git (redev/bootstrap/bootstrap.sh)")
-    endif()
-    # Probe first so a dead network fails in 30 s and not after minutes.
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E env GIT_TERMINAL_PROMPT=0
-                "${GIT_EXECUTABLE}" ls-remote --exit-code "${BUILDKIT_REPO}" "${BUILDKIT_TAG}"
-        RESULT_VARIABLE _bk_rc OUTPUT_QUIET ERROR_QUIET TIMEOUT 30)
-    if(NOT _bk_rc EQUAL 0 AND NOT EXISTS "${_bk_src}/cmake/Buildkit.cmake")
-        message(FATAL_ERROR
-            "buildkit: cannot reach ${BUILDKIT_REPO} (tag ${BUILDKIT_TAG}). Set "
-            "BUILDKIT_DIR to a local checkout (redev/bootstrap/bootstrap.sh)")
-    endif()
-    if(_bk_rc EQUAL 0)
+
+    if(_bk_use_cache)
+        if(NOT _bk_cached_tag STREQUAL BUILDKIT_TAG)
+            message(FATAL_ERROR
+                "buildkit: the cached copy in ${_bk_src} is tag "
+                "'${_bk_cached_tag}', but BUILDKIT_TAG is ${BUILDKIT_TAG}, and buildkit "
+                "cannot be fetched (offline or unreachable). Set BUILDKIT_DIR, or "
+                "reconfigure online (redev/bootstrap/bootstrap.sh)")
+        endif()
+        set(_bk_from "tag ${BUILDKIT_TAG}, cached")
+    else()
         include(FetchContent)
         set(_bk_old_base "${FETCHCONTENT_BASE_DIR}")
         set(FETCHCONTENT_BASE_DIR "${CMAKE_BINARY_DIR}/_buildkit")
         FetchContent_Declare(buildkit_src
-            GIT_REPOSITORY "${BUILDKIT_REPO}"
+            GIT_REPOSITORY "${BUILDKIT_REPOSITORY}"
             GIT_TAG        "${BUILDKIT_TAG}"
             GIT_SHALLOW    TRUE
             SOURCE_DIR     "${_bk_src}"
@@ -81,9 +115,10 @@ else()
         else()
             unset(FETCHCONTENT_BASE_DIR)
         endif()
+        file(WRITE "${_bk_stamp}" "${BUILDKIT_TAG}\n")
+        set(_bk_from "tag ${BUILDKIT_TAG}")
     endif()
     set(BUILDKIT_DIR "${_bk_src}")
-    set(_bk_from "tag ${BUILDKIT_TAG}")
 endif()
 
 message(STATUS "buildkit: using ${BUILDKIT_DIR} (${_bk_from})")

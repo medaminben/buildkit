@@ -35,6 +35,9 @@ set(VAR_MARKER_END })
 get_filename_component(_buildkit_template_dir "${CMAKE_CURRENT_LIST_DIR}/../../template" ABSOLUTE)
 set_property(GLOBAL PROPERTY BUILDKIT_TEMPLATE_DIR "${_buildkit_template_dir}")
 unset(_buildkit_template_dir)
+get_filename_component(_buildkit_loader "${CMAKE_CURRENT_LIST_DIR}/../../loader/buildkit.cmake" ABSOLUTE)
+set_property(GLOBAL PROPERTY BUILDKIT_LOADER_FILE "${_buildkit_loader}")
+unset(_buildkit_loader)
 
 function(generate_libraries)
     set(options)
@@ -235,7 +238,8 @@ function(generate_project)
     endforeach()
     # The product loader: a copy of buildkit's loader/buildkit.cmake.
     if(NOT EXISTS "${prj_DESTINATION}/cmake/buildkit.cmake")
-        configure_file("${BUILDKIT_ROOT}/loader/buildkit.cmake"
+        get_property(loader_file GLOBAL PROPERTY BUILDKIT_LOADER_FILE)
+        configure_file("${loader_file}"
                        "${prj_DESTINATION}/cmake/buildkit.cmake" COPYONLY)
     endif()
     message(STATUS "generate_project: ${prj_NAME} written to ${prj_DESTINATION}")

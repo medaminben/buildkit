@@ -122,8 +122,9 @@ buildkit_add_fixture_test(NAME layout_generate_legacy DIR layout/generate_legacy
 buildkit_add_fixture_test(NAME layout_project DIR layout/project BUILD
     EXPECT_OUTPUT "LAYOUT_PROJECT_OK")
 
-# Loader (loader/buildkit.cmake). The tag-fetch path is verified after the repo rename.
-foreach(case local env sibling bad_dir offline twice)
+# Loader (loader/buildkit.cmake); fetch cases use a file:// repo built under build/.
+foreach(case local env sibling bad_dir offline twice fetch cached_offline
+                disconnected stale_offline tagchange dead_cached)
     add_test(NAME loader_${case}
         COMMAND ${CMAKE_COMMAND} -DCASE=${case} -DBUILDKIT_REPO=${CMAKE_SOURCE_DIR}
                 -P ${CMAKE_SOURCE_DIR}/tests/loader/run_case.cmake)
