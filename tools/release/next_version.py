@@ -17,19 +17,19 @@ SEMVER_LABELS = {
     "semver:none": "none",
 }
 
-_VERSION_RE = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)")
-_BETA_RE = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-beta\.(0|[1-9]\d*)")
+VERSION_RE = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)")
+BETA_RE = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-beta\.(0|[1-9]\d*)")
 
 
 def _parse_version(version: str) -> tuple[int, int, int]:
-    match = _VERSION_RE.fullmatch(version)
+    match = VERSION_RE.fullmatch(version)
     if match is None:
         raise ValueError(f"malformed version: {version!r} (expected X.Y.Z)")
     return tuple(int(part) for part in match.groups())
 
 
 def _parse_beta(tag: str) -> tuple[tuple[int, int, int], int]:
-    match = _BETA_RE.fullmatch(tag)
+    match = BETA_RE.fullmatch(tag)
     if match is None:
         raise ValueError(f"malformed beta version: {tag!r} (expected X.Y.Z-beta.N)")
     x, y, z, n = (int(part) for part in match.groups())

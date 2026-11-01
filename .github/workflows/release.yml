@@ -23,10 +23,14 @@
 # given, starts the installer workflow on the new tag. See
 # tools/release/plan_release.py for the tag rules:
 #   - Beta gets X.Y.Z-beta.N, N continuing the highest beta of the same X.Y.Z.
-#   - main gets X.Y.Z. A merge of the Beta branch into main (promotion)
-#     releases the base version of the highest beta tag reachable from the
-#     merge commit that is greater than the latest stable. Without such a beta
-#     the labels decide as usual. semver:none still means no release.
+#     An open beta series (highest beta base greater than the latest stable) is
+#     continued when its base is at least the one the labels ask for.
+#   - main gets X.Y.Z. A merge of the Beta branch (same repository) into main
+#     (promotion) releases the base version of the highest beta tag reachable
+#     from the merge commit that is greater than the latest stable. Without such
+#     a beta the labels decide as usual. semver:none still means no release.
+#     A squash merge of Beta into main makes the betas unreachable and falls
+#     back to the label bump, so merge Beta into main with a merge commit.
 name: Release (reusable)
 
 on:
@@ -80,13 +84,17 @@ jobs:
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
           SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           set -euo pipefail
           git fetch --tags --force
+          fork=()
+          if [ "$HEAD_REPO" != "$THIS_REPO" ]; then fork=(--from-fork); fi
           tag="$(python3 -B -I .buildkit/tools/release/plan_release.py \
             --labels "$LABELS" --base "$BASE_REF" --head "$HEAD_REF" --sha "$SHA" \
-            --notes-file "$RUNNER_TEMP/notes.md")"
+            "${fork[@]}" --notes-file "$RUNNER_TEMP/notes.md")"
           if [ -z "$tag" ]; then
             echo "::notice::No release for this pull request (semver:none)."
           fi

@@ -30,11 +30,6 @@ class PlanReleaseTest(unittest.TestCase):
         git(self.repo, "tag", "-a", "v1.5.4", "-m", "r")
         commit(self.repo, "feat: beta work 1")
         git(self.repo, "tag", "-a", "v1.6.0-beta.1", "-m", "r")
-        # A beta on a side branch that is not reachable from the merge commit.
-        git(self.repo, "checkout", "-q", "-b", "side")
-        commit(self.repo, "feat: side")
-        git(self.repo, "tag", "-a", "v2.0.0-beta.1", "-m", "r")
-        git(self.repo, "checkout", "-q", "main")
         commit(self.repo, "feat: beta work 2")
         git(self.repo, "tag", "-a", "v1.6.0-beta.2", "-m", "r")
         self.sha = commit(self.repo, "fix: merge")
@@ -45,13 +40,40 @@ class PlanReleaseTest(unittest.TestCase):
     def test_beta_minor_continues_numbering_of_its_base(self):
         self.assertEqual(self.plan(["semver:minor"], "Beta"), "v1.6.0-beta.3")
 
-    def test_beta_patch_starts_new_series(self):
-        self.assertEqual(self.plan([], "Beta"), "v1.5.5-beta.1")
+    def test_beta_without_label_continues_open_series(self):
+        self.assertEqual(self.plan([], "Beta"), "v1.6.0-beta.3")
+
+    def test_beta_major_starts_higher_series(self):
+        self.assertEqual(self.plan(["semver:major"], "Beta"), "v2.0.0-beta.1")
+
+    def test_beta_after_release_starts_new_series(self):
+        git(self.repo, "tag", "-a", "v1.6.0", "-m", "r")
+        self.assertEqual(self.plan([], "Beta"), "v1.6.1-beta.1")
+
+    def test_fork_head_is_not_a_promotion(self):
+        self.assertEqual(
+            plan_release.plan_tag(self.repo, [], "main", "Beta", self.sha, from_fork=True),
+            "v1.5.5")
+
+    def test_malformed_tags_are_ignored(self):
+        for bad in ("v01.2.3", "v1.2", "v9.9.9-beta.01", "v9.9.9-rc.1"):
+            git(self.repo, "tag", bad)
+        self.assertEqual(self.plan([], "main", "feature/x"), "v1.5.5")
+        self.assertEqual(self.plan(["semver:minor"], "Beta"), "v1.6.0-beta.3")
+        self.assertEqual(plan_release.notes(self.repo, "main", self.sha).splitlines()[-1],
+                         "- feat: beta work 1")
 
     def test_main_plain_pr_is_patch(self):
         self.assertEqual(self.plan([], "main", "feature/x"), "v1.5.5")
 
     def test_main_promotion_releases_beta_base(self):
+        self.assertEqual(self.plan([], "main", "Beta"), "v1.6.0")
+
+    def test_promotion_ignores_unreachable_betas(self):
+        git(self.repo, "checkout", "-q", "-b", "side", "v1.5.4")
+        commit(self.repo, "feat: side")
+        git(self.repo, "tag", "-a", "v2.0.0-beta.1", "-m", "r")
+        git(self.repo, "checkout", "-q", "main")
         self.assertEqual(self.plan([], "main", "Beta"), "v1.6.0")
 
     def test_promotion_ignores_betas_not_greater_than_stable(self):
@@ -69,6 +91,10 @@ class PlanReleaseTest(unittest.TestCase):
         text = plan_release.notes(self.repo, "main", self.sha)
         self.assertEqual(text.splitlines(),
                          ["- fix: merge", "- feat: beta work 2", "- feat: beta work 1"])
+
+    def test_notes_ignore_stray_tag(self):
+        git(self.repo, "tag", "v1.2")
+        self.assertEqual(len(plan_release.notes(self.repo, "main", self.sha).splitlines()), 3)
 
     def test_notes_on_beta_start_after_latest_tag(self):
         self.assertEqual(plan_release.notes(self.repo, "Beta", self.sha).splitlines(),

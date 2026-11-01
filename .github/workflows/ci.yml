@@ -9,7 +9,6 @@
 #       uses: medaminben/buildkit/.github/workflows/ci.yml@v2.0.0
 #       permissions:
 #         contents: read
-#         security-events: write   # only needed when codeql: true
 #       with:
 #         presets: "ci"            # space- or comma-separated
 #         compilers: "gcc clang"
@@ -24,9 +23,9 @@
 #            build and ctest --preset. coverage and sanitizers add the presets
 #            coverage and asan once, with gcc.
 #   analysis clang-tidy and cppcheck, report only (warnings, never a failure).
-#   codeql   CodeQL for C++ (input codeql). The caller must grant
-#            security-events: write, and private repositories need code
-#            scanning enabled.
+#
+# CodeQL lives in its own workflow, codeql.yml, so that this one does not need
+# security-events: write from the caller.
 name: CI (reusable)
 
 on:
@@ -52,10 +51,6 @@ on:
         description: "Run clang-tidy and cppcheck (report only)"
         type: boolean
         default: true
-      codeql:
-        description: "Run CodeQL for C++"
-        type: boolean
-        default: false
       coverage:
         description: "Also run the coverage preset and upload the report"
         type: boolean
@@ -246,6 +241,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build g++ clang-tidy-18 cppcheck "${extra[@]}"
       - name: Configure for compile_commands.json
+        env:
+          CC: clang-18
+          CXX: clang++-18
         run: cmake --preset ci
       - name: clang-tidy (report only)
         run: |
@@ -266,43 +264,12 @@ jobs:
       - name: cppcheck (report only)
         run: |
           set -uo pipefail
-          mapfile -t files < <(git ls-files '*.cpp' '*.h' '*.hpp')
           status=0
-          if ((${#files[@]})); then
+          if [ -e build/ci/compile_commands.json ]; then
             cppcheck --enable=all --inconclusive --std=c++20 --error-exitcode=1 \
               --suppress=missingIncludeSystem --suppress=unmatchedSuppression \
-              "${files[@]}" || status=$?
+              --project=build/ci/compile_commands.json || status=$?
           fi
           if [ "$status" -ne 0 ]; then
             echo "::warning::cppcheck reported findings (exit $status); report only, not blocking"
           fi
-
-  codeql:
-    if: inputs.codeql
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install toolchain
-        env:
-          APT_PACKAGES: ${{ inputs.apt-packages }}
-        run: |
-          set -euo pipefail
-          python3 -m pip install "cmake==3.31.*"
-          read -r -a extra <<< "$APT_PACKAGES"
-          sudo apt-get update
-          sudo apt-get install -y ninja-build g++ "${extra[@]}"
-      - uses: github/codeql-action/init@v3
-        with:
-          languages: cpp
-      - name: Build for CodeQL
-        run: |
-          set -euo pipefail
-          cmake --preset default
-          cmake --build --preset default --parallel
-      - uses: github/codeql-action/analyze@v3

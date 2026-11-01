@@ -1,0 +1,68 @@
+# Reusable CodeQL workflow for buildkit based products (C++, manual build).
+#
+# Caller example:
+#   jobs:
+#     codeql:
+#       uses: medaminben/buildkit/.github/workflows/codeql.yml@v2.0.0
+#       permissions:
+#         security-events: write
+#         actions: read
+#         contents: read
+#       with:
+#         preset: default
+#         apt-packages: "libfoo-dev"
+#
+# Private repositories need code scanning enabled.
+name: CodeQL (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      preset:
+        description: "Preset to build for the analysis"
+        type: string
+        default: "default"
+      apt-packages:
+        description: "Extra apt packages, separated by spaces"
+        type: string
+        default: ""
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install toolchain
+        env:
+          APT_PACKAGES: ${{ inputs.apt-packages }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install "cmake==3.31.*"
+          read -r -a extra <<< "$APT_PACKAGES"
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++ "${extra[@]}"
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: cpp
+          build-mode: manual
+      - name: Build for CodeQL
+        env:
+          PRESET: ${{ inputs.preset }}
+        run: |
+          set -euo pipefail
+          cmake --preset "$PRESET"
+          cmake --build --preset "$PRESET" --parallel
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:cpp"
