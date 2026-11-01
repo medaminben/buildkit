@@ -69,3 +69,22 @@ buildkit_add_fixture_test(NAME harness_fail DIR harness/fail EXPECT_FAIL)
 buildkit_add_fixture_test(NAME harness_fail_output DIR harness/fail
     EXPECT_FAIL EXPECT_OUTPUT "bootstrap.sh")
 buildkit_add_fixture_test(NAME harness_build DIR harness/built BUILD)
+
+# dev_dependency (cmake/Dependency.cmake)
+buildkit_add_fixture_test(NAME dependency_found DIR dependency/found
+    EXPECT_OUTPUT "Threads.*installed")
+buildkit_add_fixture_test(NAME dependency_missing_optional DIR dependency/missing_optional
+    EXPECT_OUTPUT "NoSuchPkg not available")
+buildkit_add_fixture_test(NAME dependency_missing_required DIR dependency/missing_required
+    EXPECT_FAIL EXPECT_OUTPUT "NoSuchPkg not available.*redev/bootstrap/bootstrap\\.sh")
+buildkit_add_fixture_test(NAME dependency_offline_optional DIR dependency/offline_optional
+    ARGS -DBUILDKIT_OFFLINE=ON EXPECT_OUTPUT "NoSuchGTestName not available")
+buildkit_add_fixture_test(NAME dependency_fetch_url DIR dependency/fetch_url
+    EXPECT_OUTPUT "tiny: fetched")
+set_tests_properties(dependency_missing_optional dependency_offline_optional
+    PROPERTIES TIMEOUT 35)
+
+# GoogleTest via dev_dependency (cmake/GTestSupport.cmake, cmake/TestUtils.cmake)
+buildkit_add_fixture_test(NAME gtest DIR gtest/on BUILD
+    EXPECT_OUTPUT "GTest[^\n]*: (installed|fetched)")
+buildkit_add_fixture_test(NAME gtest_off DIR gtest/off EXPECT_OUTPUT "GTEST_UNTOUCHED")

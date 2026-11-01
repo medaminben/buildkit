@@ -61,7 +61,8 @@ flowchart TD
 | `cmake/modules/CompilerWarnings.cmake` | Strict warnings as errors |
 | `cmake/modules/Coverage.cmake` | gcov / lcov target |
 | `cmake/modules/InstallConfig.cmake` | `find_package(UnitPro)` export |
-| `cmake/GTestSupport.cmake` | Pinned GoogleTest via FetchContent |
+| `cmake/Dependency.cmake` | `dev_dependency`: installed, else fetched, else without (or error) |
+| `cmake/GTestSupport.cmake` | GoogleTest via `dev_dependency` (installed or pinned v1.15.2) |
 | `cmake/TestUtils.cmake` | `build_gtest_executable` |
 
 ## Naming conventions

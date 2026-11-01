@@ -14,11 +14,14 @@ list(APPEND CMAKE_MODULE_PATH
     "${BUILDKIT_ROOT}/cmake"
     "${BUILDKIT_ROOT}/cmake/modules")
 
-# Not auto-included: GTestSupport/TestUtils (fetches GoogleTest, rewritten in
-# task 3), InstallConfig (declares install rules; products opt in).
+# Not auto-included: InstallConfig (declares install rules; products opt in).
+# TestUtils/GTestSupport are safe: GoogleTest is resolved only when
+# build_gtest_executable() (or buildkit_use_gtest()) is first called.
 include(BuildLocation)
 include(BuildUtils)
 include(DebugUtils)
 include(CompilerWarnings)
 include(Coverage)
 include(LibraryGenerator)
+include(Dependency)
+include(TestUtils)

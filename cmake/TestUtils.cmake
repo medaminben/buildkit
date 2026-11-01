@@ -1,3 +1,4 @@
+include_guard(GLOBAL)
 include(GTestSupport)
 
 # build_gtest_executable(
@@ -27,6 +28,12 @@ function(build_gtest_executable)
 
     if("${test_SRC}" STREQUAL "")
         message(FATAL_ERROR "${test_NAME}: missing SRC files")
+    endif()
+
+    buildkit_use_gtest()
+    if(NOT BUILDKIT_GTEST_AVAILABLE)
+        message(WARNING "${test_NAME}: GoogleTest not available, test not built")
+        return()
     endif()
 
     add_executable(${test_NAME} ${test_SRC})

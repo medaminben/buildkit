@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.29)
+project(dep_fetch_url LANGUAGES NONE)
+include(${BUILDKIT_DIR}/cmake/Buildkit.cmake)
+
+# tiny.zip holds a CMakeLists.txt that defines the INTERFACE target `tiny`.
+set(zip "${CMAKE_CURRENT_SOURCE_DIR}/../data/tiny.zip")
+cmake_path(NORMAL_PATH zip)
+file(SHA256 "${zip}" zip_sha)
+dev_dependency(tiny FETCH_URL "file://${zip}" FETCH_SHA256 ${zip_sha}
+    FETCH_CACHE TINY_FLAG=ON)
+if(NOT tiny_AVAILABLE OR NOT TARGET tiny)
+    message(FATAL_ERROR "tiny not available after fetch")
+endif()
+if(NOT EXISTS "${CMAKE_BINARY_DIR}/_downloads/tiny/tiny.zip")
+    message(FATAL_ERROR "download did not land in _downloads")
+endif()
+if(NOT TINY_SAW_FLAG)
+    message(FATAL_ERROR "FETCH_CACHE value did not reach the fetched project")
+endif()
+add_library(consumer INTERFACE)
+target_link_libraries(consumer INTERFACE tiny)
