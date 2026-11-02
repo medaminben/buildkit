@@ -170,6 +170,11 @@ add_test(NAME release_tool
     COMMAND ${Python3_EXECUTABLE} -B -I -m unittest discover
             -s ${CMAKE_CURRENT_SOURCE_DIR}/tools/release -p "test_*.py" -v)
 
+# The buildkit version pins (workflows, loader, Buildkit.cmake, docs) must agree.
+add_test(NAME release_pins
+    COMMAND ${Python3_EXECUTABLE} -B -I ${CMAKE_CURRENT_SOURCE_DIR}/tests/release_pins/check_pins.py
+            ${CMAKE_CURRENT_SOURCE_DIR})
+
 # Manual builder (tools/manual/build_manual.py) and its fixture project.
 add_test(NAME manual_tool
     COMMAND ${Python3_EXECUTABLE} -B -I -m unittest discover
