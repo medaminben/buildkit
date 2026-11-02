@@ -1,6 +1,7 @@
 # Installer command: a fake wine records the ISCC argv; CASE selects what is checked.
 #   version_arg  VERSION wins over PROJECT_VERSION_FULL; relative ISS/OUTPUT_DIR
 #   full         PROJECT_VERSION_FULL used
+#   name_full    only ${PROJECT_NAME}_VERSION_FULL set: used
 #   plain        PROJECT_VERSION used
 #   search       ISCC found via BUILDKIT_ISCC_HINTS (BUILDKIT_ISCC unset)
 cmake_minimum_required(VERSION 3.29)
@@ -27,6 +28,9 @@ if(CASE STREQUAL "version_arg")
 elseif(CASE STREQUAL "full")
     set(PROJECT_VERSION_FULL 9.9.9-full)
     set(expect_version 9.9.9-full)
+elseif(CASE STREQUAL "name_full")
+    set(${PROJECT_NAME}_VERSION_FULL 8.8.8-name)
+    set(expect_version 8.8.8-name)
 elseif(NOT CASE STREQUAL "plain" AND NOT CASE STREQUAL "search")
     message(FATAL_ERROR "unknown CASE '${CASE}'")
 endif()

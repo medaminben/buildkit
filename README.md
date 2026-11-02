@@ -16,6 +16,8 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/buildkit.cmake)
 
 buildkit_git_version(${CMAKE_CURRENT_SOURCE_DIR} MYAPP_VERSION MYAPP_VERSION_FULL FALLBACK 0.1.0)
 project(MyApp VERSION ${MYAPP_VERSION} LANGUAGES CXX)
+# The installer target reads ${PROJECT_NAME}_VERSION_FULL for /DAppVersion.
+set(${PROJECT_NAME}_VERSION_FULL "${MYAPP_VERSION_FULL}")
 ```
 
 A new product can be generated instead: `generate_project(NAME MyApp DESTINATION <dir> LIBRARIES Core)`

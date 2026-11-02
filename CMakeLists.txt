@@ -154,7 +154,7 @@ buildkit_add_fixture_test(NAME packaging_no_iscc_message DIR packaging
     EXPECT_OUTPUT "pkgapp_installer: ISCC not found.*skipped")
 
 # Installer command through a fake wine (found-ISCC path; no real wine/ISCC needed).
-foreach(c version_arg full plain)
+foreach(c version_arg full name_full plain)
     buildkit_add_fixture_test(NAME packaging_installer_${c} DIR packaging_installer BUILD
         ARGS -DCASE=${c}
              "-DBUILDKIT_WINE=${CMAKE_SOURCE_DIR}/tests/packaging_installer/fake/wine"

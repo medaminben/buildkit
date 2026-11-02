@@ -166,7 +166,9 @@ buildkit_add_inno_installer(MyApp ISS installer/MyApp.iss
 
 - `MyApp_stage` runs `cmake --install` into `<binary dir>/stage`; product specific
   pieces (for example a `LICENSE` copy for WIN32) go into the `INSTALL_SCRIPTS`.
-- `MyApp_installer` runs `ISCC` with `/DAppVersion=<full version>`, `/DStageDir`
+- `MyApp_installer` runs `ISCC` with `/DAppVersion=<version>`, where the version is the `VERSION`
+  argument, else `PROJECT_VERSION_FULL`, else `${PROJECT_NAME}_VERSION_FULL`, else
+  `PROJECT_VERSION`, `/DStageDir`
   and the output folder `<binary dir>/dist`. `ISCC.exe` is searched natively on
   Windows; on Linux set `BUILDKIT_ISCC` (path to `ISCC.exe`, run as `wine ISCC.exe`)
   and optionally `BUILDKIT_ISCC_HINTS`. Without ISCC (or wine) no installer target

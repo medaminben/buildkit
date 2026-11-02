@@ -9,7 +9,8 @@
 #                               [OUTPUT_DIR <dir>] [VERSION <v>])
 #       Creates <app_target>_installer (depends on <app_target>_stage). Runs ISCC with
 #       /DAppVersion=<v> /DStageDir=<stage> /O<OUTPUT_DIR, default ${CMAKE_BINARY_DIR}/dist>.
-#       <v> is VERSION, else ${PROJECT_VERSION_FULL} (set it from buildkit_git_version),
+#       <v> is VERSION, else ${PROJECT_VERSION_FULL}, else ${${PROJECT_NAME}_VERSION_FULL} (the
+#       variable that buildkit_git_version fills when it is given <PROJECT_NAME>_VERSION_FULL),
 #       else ${PROJECT_VERSION}. ISCC.exe is searched natively on Windows; on Linux it is
 #       run as 'wine ISCC.exe' with the path in the BUILDKIT_ISCC cache entry. When ISCC
 #       (or wine) is missing no target is created and a status message is printed.
@@ -68,6 +69,8 @@ function(buildkit_add_inno_installer app)
         set(version "${arg_VERSION}")
     elseif(PROJECT_VERSION_FULL)
         set(version "${PROJECT_VERSION_FULL}")
+    elseif(${PROJECT_NAME}_VERSION_FULL)
+        set(version "${${PROJECT_NAME}_VERSION_FULL}")
     else()
         set(version "${PROJECT_VERSION}")
     endif()
