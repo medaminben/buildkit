@@ -1,0 +1,31 @@
+/* Default manual style; a product replaces it with <root>/assets/manual.css. */
+:root { color-scheme: light dark; --accent: #2b6cb0; --line: #8884; }
+body { font: 16px/1.6 system-ui, sans-serif; margin: 0; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+       padding: .5rem 1rem; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: .5rem; text-decoration: none; color: inherit; font-weight: 600; }
+.brand img, .logo img { height: 2rem; width: auto; }
+.brand small { opacity: .7; font-weight: 400; }
+.langs { display: flex; gap: .5rem; }
+.langs img { height: 1.2rem; }
+.layout { display: flex; gap: 2rem; max-width: 70rem; margin: 0 auto; padding: 1rem; }
+.sidebar { flex: 0 0 14rem; }
+.sidebar ol { list-style: none; padding: 0; }
+main { flex: 1; min-width: 0; }
+a { color: var(--accent); }
+img { max-width: 100%; height: auto; }
+.ui { font-weight: 600; border: 1px solid var(--line); border-radius: 4px; padding: 0 .3em; }
+aside { border-inline-start: 4px solid var(--accent); padding: .1rem 1rem; background: #8881; }
+aside.warning { border-color: #c53030; }
+table { border-collapse: collapse; }
+td, th { border: 1px solid var(--line); padding: .3rem .6rem; }
+.formula { font-family: monospace; padding: .5rem 1rem; background: #8881; }
+.pager { display: flex; justify-content: space-between; margin-top: 2rem; }
+.pager span { display: block; font-size: .8rem; opacity: .7; }
+.chooser main { text-align: center; padding: 3rem 1rem; }
+.choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; }
+.choice { display: flex; flex-direction: column; align-items: center; padding: 1rem 1.5rem;
+          border: 1px solid var(--line); border-radius: 8px; text-decoration: none; }
+.lightbox[hidden] { display: none; }
+.lightbox { position: fixed; inset: 0; background: #000c; display: grid; place-items: center; }
+@media (max-width: 40rem) { .layout { flex-direction: column; } }

@@ -1,0 +1,24 @@
+project(Core VERSION 2.0.0 LANGUAGES CXX)
+
+set(TARGET_NAME ${PROJECT_NAME})
+set(TST_DISCOVER ON)
+
+set(TARGET_HEADERS include/Demo/Core/Core.h)
+set(TARGET_SOURCES src/Core.cpp)
+set(TARGET_RSC test/data/CoreTestData.txt)
+set(PRIVATE_DEPS)
+set(PUBLIC_DEPS)
+set(TARGET_FILES ${TARGET_HEADERS} ${TARGET_SOURCES})
+set(TST_SOURCES test/src/test_Core.cpp)
+set(TEST_DEPS)
+
+create_library(
+    LIB_NAME             ${TARGET_NAME}
+    LIB_FILES            ${TARGET_FILES}
+    PRIVATE_DEPENDENCIES ${PRIVATE_DEPS}
+    PUBLIC_DEPENDENCIES  ${PUBLIC_DEPS}
+    TEST_DISCOVER        ${TST_DISCOVER}
+    TEST_SOURCES         ${TST_SOURCES}
+    TEST_DEPENDENCIES    ${TEST_DEPS}
+    LIB_RSC              ${TARGET_RSC}
+)

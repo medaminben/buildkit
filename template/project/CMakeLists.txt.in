@@ -1,0 +1,62 @@
+cmake_minimum_required(VERSION 3.29)
+
+# buildkit is loaded before project(): cmake/buildkit.cmake (the loader) uses
+# BUILDKIT_DIR, else ../buildkit, else the pinned buildkit tag.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/buildkit.cmake)
+
+# The version comes from the latest vX.Y.Z git tag.
+buildkit_git_version(${CMAKE_CURRENT_SOURCE_DIR}
+    @project_NAME_UPPER@_VERSION @project_NAME_UPPER@_VERSION_FULL FALLBACK 0.1.0)
+
+project(@project_NAME@ VERSION ${@project_NAME_UPPER@_VERSION} LANGUAGES CXX)
+# buildkit_add_inno_installer reads ${PROJECT_NAME}_VERSION_FULL for /DAppVersion.
+set(${PROJECT_NAME}_VERSION_FULL "${@project_NAME_UPPER@_VERSION_FULL}")
+message(STATUS "@project_NAME@ version: ${@project_NAME_UPPER@_VERSION_FULL}")
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# ---------------------------------------------------------------------------
+# Build options
+# ---------------------------------------------------------------------------
+option(BUILD_SHARED_LIBS  "Build the libraries as shared libraries"           ON)
+option(BUILD_APPS         "Build the applications"                            ON)
+option(GENERATE_SCAFFOLD  "Generate missing libraries from buildkit templates" ON)
+option(ENABLE_COVERAGE    "Enable code coverage instrumentation"              OFF)
+
+include(CTest)     # BUILD_TESTING, ON by default
+include(Coverage)  # the `coverage` target when ENABLE_COVERAGE is ON
+
+# ---------------------------------------------------------------------------
+# Libraries: add a name here and reconfigure to generate libraries/<Name>/
+# (flat layout: <Name>::<Name>, include/<Name>/, namespace <Name>) and its
+# console and wxWidgets apps under applications/<Name>/.
+# ---------------------------------------------------------------------------
+set(@project_NAME_UPPER@_LIBRARIES@project_LIBRARIES@
+)
+
+set(libraries_dir    ${CMAKE_CURRENT_SOURCE_DIR}/libraries)
+set(applications_dir ${CMAKE_CURRENT_SOURCE_DIR}/applications)
+
+if(GENERATE_SCAFFOLD)
+    generate_libraries(
+        LIBRARIES_LIST     ${@project_NAME_UPPER@_LIBRARIES}
+        LIBRARIES_LOCATION ${libraries_dir}
+        APPS_LOCATION      ${applications_dir}
+        TEMPLATE_LOCATION  ${BUILDKIT_ROOT}/template
+    )
+endif()
+
+if(EXISTS ${libraries_dir}/CMakeLists.txt)
+    add_subdirectory(${libraries_dir})
+endif()
+
+if(BUILD_APPS AND EXISTS ${applications_dir}/CMakeLists.txt)
+    add_subdirectory(${applications_dir})
+endif()
+
+if(EXISTS ${libraries_dir}/CMakeLists.txt)
+    include(InstallConfig)
+endif()

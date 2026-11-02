@@ -1,0 +1,96 @@
+# Reusable CodeQL workflow for buildkit based products (C++, manual build).
+#
+# Caller example:
+#   jobs:
+#     codeql:
+#       uses: medaminben/buildkit/.github/workflows/codeql.yml@v2.0.0
+#       permissions:
+#         security-events: write
+#         actions: read
+#         contents: read
+#       with:
+#         preset: default
+#         apt-packages: "libfoo-dev"
+#         configure-args: "-DMY_OPTION=ON"
+#
+# With buildkit-ref set, buildkit is checked out at that ref into .buildkit and
+# exported as BUILDKIT_DIR for the configure (the same buildkit as ci.yml uses).
+# Empty (default): the product's own BUILDKIT_TAG pin is honoured.
+# Private repositories need code scanning enabled.
+name: CodeQL (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      preset:
+        description: "Preset to build for the analysis"
+        type: string
+        default: "default"
+      apt-packages:
+        description: "Extra apt packages, separated by spaces"
+        type: string
+        default: ""
+      configure-args:
+        description: "Extra arguments for cmake --preset, after the preset. Split at whitespace (no quoting)"
+        type: string
+        default: ""
+      buildkit-repository:
+        description: "Repository that provides buildkit"
+        type: string
+        default: "medaminben/buildkit"
+      buildkit-ref:
+        description: "Tag, branch or SHA of buildkit to check out and use (BUILDKIT_DIR). Empty: the product's own pin is used"
+        type: string
+        default: ""
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        if: inputs.buildkit-ref != ''
+        with:
+          repository: ${{ inputs.buildkit-repository }}
+          ref: ${{ inputs.buildkit-ref }}
+          path: .buildkit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install toolchain
+        env:
+          APT_PACKAGES: ${{ inputs.apt-packages }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install "cmake==3.31.*"
+          read -r -a extra <<< "$APT_PACKAGES"
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++ "${extra[@]}"
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: cpp
+          build-mode: manual
+      - name: Build for CodeQL
+        env:
+          PRESET: ${{ inputs.preset }}
+          CONFIGURE_ARGS: ${{ inputs.configure-args }}
+          BUILDKIT_REF: ${{ inputs.buildkit-ref }}
+        run: |
+          set -euo pipefail
+          if [ -n "$BUILDKIT_REF" ]; then export BUILDKIT_DIR="$GITHUB_WORKSPACE/.buildkit"; fi
+          # Split at whitespace on purpose (no quoting).
+          configure_text="${CONFIGURE_ARGS//$'\n'/ }"
+          read -r -a preset_opts <<< "$configure_text"
+          cmake --preset "$PRESET" "${preset_opts[@]}"
+          cmake --build --preset "$PRESET" --parallel
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:cpp"

@@ -1,0 +1,60 @@
+project(${lib_NAME} VERSION 0.1.0 LANGUAGES CXX)
+
+set(TARGET_NAME ${lib_NAME})
+
+set(TST_DISCOVER ON)
+###############################################################
+# Manage project files
+###############################################################
+set(TARGET_HEADERS
+    # Private headers belong in "src".
+    src/${lib_NAME}_impl.h
+    # Public headers belong in include/${lib_INCLUDE_DIR}/. Other libraries
+    # and applications include them as <${lib_INCLUDE_DIR}/...>.
+    include/${lib_INCLUDE_DIR}/${lib_NAME}.h
+)
+
+set(TARGET_SOURCES
+    # Source files belong in "src"; no other component sees them.
+    src/${lib_NAME}.cpp
+    src/${lib_NAME}_impl.cpp
+)
+
+set(TARGET_RSC
+    # Resources, copied to <build>/data/<target>/ for the tests.
+    test/data/${lib_NAME}TestData.txt
+)
+
+# Dependencies
+set(PRIVATE_DEPS
+)
+set(PUBLIC_DEPS
+)
+set(TARGET_FILES
+    ${VAR_MARKER_START}TARGET_HEADERS${VAR_MARKER_END}
+    ${VAR_MARKER_START}TARGET_SOURCES${VAR_MARKER_END}
+)
+###############################################################
+# Manage testing files
+###############################################################
+set(TST_SOURCES
+    # Files with test cases start with test_.
+    test/src/test_${lib_NAME}.cpp
+)
+
+# Test dependencies other than the library itself
+set(TEST_DEPS
+)
+###############################################################
+# Build: target ${lib_TARGET}
+###############################################################
+create_library(
+    LIB_NAME             ${VAR_MARKER_START}TARGET_NAME${VAR_MARKER_END}
+    LIB_FILES            ${VAR_MARKER_START}TARGET_FILES${VAR_MARKER_END}
+    PRIVATE_DEPENDENCIES ${VAR_MARKER_START}PRIVATE_DEPS${VAR_MARKER_END}
+    PUBLIC_DEPENDENCIES  ${VAR_MARKER_START}PUBLIC_DEPS${VAR_MARKER_END}
+    TEST_DISCOVER        ${VAR_MARKER_START}TST_DISCOVER${VAR_MARKER_END}
+    TEST_SOURCES         ${VAR_MARKER_START}TST_SOURCES${VAR_MARKER_END}
+    TEST_DEPENDENCIES    ${VAR_MARKER_START}TEST_DEPS${VAR_MARKER_END}
+    LIB_RSC              ${VAR_MARKER_START}TARGET_RSC${VAR_MARKER_END}
+)

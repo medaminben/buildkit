@@ -1,0 +1,13 @@
+#include "${lib_NAME}_impl.h"
+
+namespace ${lib_NAMESPACE} {
+
+unsigned int get_the_answer_impl() {
+    return 42U;
+}
+
+int multiply_impl(int lhs, int rhs) {
+    return lhs * rhs;
+}
+
+}  // namespace ${lib_NAMESPACE}

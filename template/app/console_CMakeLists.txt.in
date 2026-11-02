@@ -1,0 +1,8 @@
+project(${lib_NAME}_Console VERSION 0.1.0 LANGUAGES CXX)
+
+create_application(
+    NAME         ${lib_NAME}_Console
+    ENTRY        Console
+    SOURCES      ${lib_NAME}_Console.cpp
+    DEPENDENCIES ${lib_TARGET}
+)

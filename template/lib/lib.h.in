@@ -1,0 +1,14 @@
+#ifndef ${lib_GUARD}_H
+#define ${lib_GUARD}_H
+
+#include <${lib_INCLUDE_DIR}/${lib_EXPORT_HEADER}>
+
+namespace ${lib_NAMESPACE} {
+
+unsigned int ${lib_API} get_the_answer();
+
+int ${lib_API} multiply(int lhs, int rhs);
+
+}  // namespace ${lib_NAMESPACE}
+
+#endif  // ${lib_GUARD}_H

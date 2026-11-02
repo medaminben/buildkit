@@ -1,0 +1,21 @@
+#include <${lib_INCLUDE_DIR}/${lib_NAME}.h>
+
+#include <wx/wx.h>
+
+#include <string>
+
+class ${lib_NAME}App : public wxApp {
+public:
+    bool OnInit() override {
+        auto* frame = new wxFrame(nullptr, wxID_ANY, "${lib_NAME}", wxDefaultPosition,
+                                  wxSize(640, 480));
+        frame->CreateStatusBar();
+        const std::string text =
+            "The answer is " + std::to_string(${lib_NAMESPACE}::get_the_answer());
+        frame->SetStatusText(wxString::FromUTF8(text));
+        frame->Show(true);
+        return true;
+    }
+};
+
+wxIMPLEMENT_APP(${lib_NAME}App);

@@ -1,8 +1,19 @@
 # Optional coverage flags (GCC/Clang + gcov / llvm-cov).
+#
+# Buildkit.cmake includes this file, possibly before project() (the product
+# loader runs there); then no compiler is known yet and nothing happens.
+# Include it again after project() (template/project does): it configures
+# coverage once.
 
-if(NOT ENABLE_COVERAGE)
+get_property(_buildkit_coverage_done GLOBAL PROPERTY BUILDKIT_COVERAGE_DONE)
+if(_buildkit_coverage_done OR NOT ENABLE_COVERAGE)
     return()
 endif()
+get_property(_buildkit_languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+if(NOT CXX IN_LIST _buildkit_languages)
+    return()
+endif()
+set_property(GLOBAL PROPERTY BUILDKIT_COVERAGE_DONE TRUE)
 
 if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     message(WARNING "ENABLE_COVERAGE is supported for GCC/Clang only")

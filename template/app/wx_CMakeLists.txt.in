@@ -1,0 +1,27 @@
+project(${lib_NAME}_Wx_UI VERSION 0.1.0 LANGUAGES CXX)
+
+# A product that defines BUILD_WX_UI can switch the wx apps off.
+if(DEFINED BUILD_WX_UI AND NOT BUILD_WX_UI)
+    return()
+endif()
+
+# wxWidgets is optional: without it this app is skipped and the rest builds.
+if(TARGET wx::core AND TARGET wx::base)
+    set(wxWidgets_AVAILABLE TRUE)  # the product already provides wx
+else()
+    dev_dependency(wxWidgets VERSION 3.2 OPTIONAL COMPONENTS core base)
+endif()
+
+if(wxWidgets_AVAILABLE)
+    if(TARGET wx::core AND TARGET wx::base)
+        set(wx_libs wx::core wx::base)       # wxWidgets' CMake package
+    else()
+        set(wx_libs wxWidgets::wxWidgets)    # CMake's FindwxWidgets (wx-config)
+    endif()
+    create_application(
+        NAME         ${lib_NAME}_Wx_UI
+        ENTRY        WX_ui
+        SOURCES      ${lib_NAME}_Wx_UI.cpp
+        DEPENDENCIES ${lib_TARGET} ${VAR_MARKER_START}wx_libs${VAR_MARKER_END}
+    )
+endif()

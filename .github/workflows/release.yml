@@ -1,44 +1,146 @@
-name: Release
+# Reusable release workflow for buildkit based products.
+#
+# The caller triggers it when a pull request is closed:
+#   on:
+#     pull_request:
+#       types: [closed]
+#   jobs:
+#     release:
+#       uses: medaminben/buildkit/.github/workflows/release.yml@v2.0.0
+#       permissions:
+#         contents: write
+#         actions: write
+#       with:
+#         installer-workflow: windows-installer.yml   # optional
+#
+# Pull requests from forks: GitHub gives a "pull_request" run of a fork PR a
+# read-only token and no write access, so tagging would fail. For merged fork PRs
+# the caller must trigger on "pull_request_target" instead (same types). This is
+# safe here because the workflow never checks out or runs code of the pull
+# request: the first checkout has no ref, so under pull_request_target it is the
+# pull request's base branch (history and tags only, used for git commands),
+# buildkit comes from a fixed repository and ref, and the PR contributes only its
+# labels, branch names and merge commit SHA, which reach the shell through env
+# variables.
+#
+# installer-workflow is started with "gh workflow run <file> --ref <tag>", so
+# that workflow must have "on: workflow_dispatch" in the caller's repository.
+#
+# The job runs only for a merged pull request into main or Beta. It takes the
+# semver:* label of the PR (patch without a label, semver:none means no
+# release), tags the merge commit, creates the GitHub release (a pre-release on
+# Beta) with the commit subjects since the previous tag as notes and, when
+# given, starts the installer workflow on the new tag. See
+# tools/release/plan_release.py for the tag rules:
+#   - Beta gets X.Y.Z-beta.N, N continuing the highest beta of the same X.Y.Z.
+#     An open beta series (highest beta base greater than the latest stable) is
+#     continued when its base is at least the one the labels ask for.
+#   - main gets X.Y.Z. A merge of the Beta branch (same repository) into main
+#     (promotion) releases the base version of the highest beta tag reachable
+#     from the merge commit that is greater than the latest stable. Without such
+#     a beta the labels decide as usual. semver:none still means no release.
+#     A squash merge of Beta into main makes the betas unreachable and falls
+#     back to the label bump, so merge Beta into main with a merge commit.
+#   - Re-running a failed job: when the merge commit already carries a tag of the
+#     planned kind (stable on main, beta on Beta), that tag is reused: it is not
+#     created again, and the GitHub release is created only if it is missing.
+name: Release (reusable)
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_call:
+    inputs:
+      installer-workflow:
+        description: "Workflow file of the caller to run with the new tag (needs workflow_dispatch)"
+        type: string
+        default: ""
+      buildkit-repository:
+        description: "Repository that provides tools/release"
+        type: string
+        default: "medaminben/buildkit"
+      buildkit-ref:
+        description: "Tag, branch or SHA of buildkit"
+        type: string
+        default: "v2.0.0"
 
 permissions:
   contents: write
+  actions: write
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   release:
-    name: Build & Publish Release
+    if: >-
+      github.event.pull_request.merged == true &&
+      (github.event.pull_request.base.ref == 'main' || github.event.pull_request.base.ref == 'Beta')
     runs-on: ubuntu-latest
+    concurrency:
+      group: release-${{ github.repository }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake g++
-
-      - name: Configure
-        run: cmake --preset default -DCMAKE_INSTALL_PREFIX=$PWD/install
-
-      - name: Build
-        run: cmake --build --preset default --parallel
-
-      - name: Test
-        run: ctest --preset default --output-on-failure
-
-      - name: Install package tree
-        run: cmake --install build/default
-
-      - name: Package artifacts
-        run: |
-          tar -czf "unitpro-${GITHUB_REF_NAME}-linux-amd64.tar.gz" -C install .
-          echo "ARTIFACT=unitpro-${GITHUB_REF_NAME}-linux-amd64.tar.gz" >> "$GITHUB_ENV"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
-          files: ${{ env.ARTIFACT }}
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.buildkit-repository }}
+          ref: ${{ inputs.buildkit-ref }}
+          path: .buildkit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Plan the release
+        id: plan
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          fork=()
+          if [ "$HEAD_REPO" != "$THIS_REPO" ]; then fork=(--from-fork); fi
+          tag="$(python3 -B -I .buildkit/tools/release/plan_release.py \
+            --labels "$LABELS" --base "$BASE_REF" --head "$HEAD_REF" --sha "$SHA" \
+            "${fork[@]}" --notes-file "$RUNNER_TEMP/notes.md")"
+          if [ -z "$tag" ]; then
+            echo "::notice::No release for this pull request (semver:none)."
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Tag and publish the release
+        if: steps.plan.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # A re-run: plan_release.py returned the tag the merge commit already has.
+          if [ "$(git rev-parse -q --verify "refs/tags/$TAG^{commit}" || true)" = "$SHA" ]; then
+            echo "::notice::$TAG already tags $SHA, reusing it."
+          else
+            git tag -a "$TAG" -m "Release $TAG" "$SHA"
+            git push origin "refs/tags/$TAG"
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::Release $TAG already exists."
+            exit 0
+          fi
+          args=(--notes-file "$RUNNER_TEMP/notes.md" --target "$SHA" --title "$TAG")
+          if [ "$BASE_REF" = "Beta" ]; then args+=(--prerelease); fi
+          gh release create "$TAG" "${args[@]}"
+      - name: Run the installer workflow
+        if: steps.plan.outputs.tag != '' && inputs.installer-workflow != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          INSTALLER: ${{ inputs.installer-workflow }}
+        run: gh workflow run "$INSTALLER" --ref "$TAG"

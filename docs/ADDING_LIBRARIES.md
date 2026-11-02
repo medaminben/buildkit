@@ -1,101 +1,114 @@
 # Adding libraries and applications
 
-## Add a new library (recommended)
+## Two layouts
 
-1. Edit the root `CMakeLists.txt` and append a name:
+The layout follows `CMAKE_ROOT_NAME`. Set before the libraries are added, it
+selects the legacy layout (existing products such as Bowlingbox); unset, the
+flat layout is used. New products use the flat layout.
 
-```cmake
-set(UNITPRO_LIBRARIES Core Math)
-```
+| | Flat (`CMAKE_ROOT_NAME` unset) | Legacy (`CMAKE_ROOT_NAME` = `Root`) |
+|---|---|---|
+| Target | `<Lib>` | `<root>_<lib>` (lower case) |
+| Alias | `<Lib>::<Lib>` | `<Root>::<Lib>` |
+| Public header | `include/<Lib>/<Lib>.h` | `include/<Root>/<Lib>/<Lib>.h` |
+| Namespace | `<Lib>` | `<Root>::<Lib>` |
+| Export header | `include/<Lib>/<Lib>_export.h` | `<Root>_<Lib>_export.h` |
+| Export macro | `<LIB>_API` | `<ROOT>_<LIB>_API` |
+| Test executable | `test_<lib>` | `test_<root>_<lib>` |
+| Install export set | `<CMAKE_PROJECT_NAME>Targets` | `<Root>Targets` |
+| Warning level (default) | strict | base |
 
-2. Reconfigure:
+Export headers are generated in the build tree, never in the source tree.
 
-```bash
-cmake --preset default
-```
-
-3. If `libraries/Math` did not exist, the scaffold generator creates:
-
-```
-libraries/Math/
-  CMakeLists.txt
-  include/UnitPro/Math/Math.h
-  src/Math.cpp
-  src/Math_impl.h
-  src/Math_impl.cpp
-  test/src/test_Math.cpp
-  test/data/MathTestData.txt
-
-applications/Math/
-  CMakeLists.txt
-  Math_Console/
-    CMakeLists.txt
-    Math_Console.cpp
-```
-
-4. Implement the real API in `include/` + `src/`, expand tests, rebuild:
-
-```bash
-cmake --build --preset default
-ctest --preset default --output-on-failure
-```
-
-## Public vs private headers
-
-| Location | Visibility | Include style |
-|----------|------------|---------------|
-| `include/UnitPro/<Lib>/` | Public | `#include <UnitPro/Lib/Lib.h>` |
-| `src/` | Private | `#include "Lib_impl.h"` |
-
-Keep export macros on public symbols only:
-
-```cpp
-int UNITPRO_MATH_API multiply(int lhs, int rhs);
-```
-
-## Wire custom dependencies
-
-In the library `CMakeLists.txt`:
+## `create_library`
 
 ```cmake
-set(PRIVATE_DEPS Some::PrivateDep)
-set(PUBLIC_DEPS  Other::PublicDep)
-
 create_library(
-    LIB_NAME             ${TARGET_NAME}
-    LIB_FILES            ${TARGET_FILES}
-    PRIVATE_DEPENDENCIES ${PRIVATE_DEPS}
-    PUBLIC_DEPENDENCIES  ${PUBLIC_DEPS}
+    LIB_NAME             Math
+    LIB_FILES            ${MATH_FILES}
+    PUBLIC_DEPENDENCIES  Other::Dep
+    PRIVATE_DEPENDENCIES Some::Dep
     TEST_DISCOVER        ON
-    TEST_SOURCES         ${TST_SOURCES}
-    TEST_DEPENDENCIES    ${TEST_DEPS}
+    TEST_SOURCES         ${MATH_TEST_SOURCES}
+    TEST_DEPENDENCIES    GTest::gtest GTest::gtest_main
+    LIB_RSC              test/data/MathTestData.txt
 )
 ```
 
-- **PUBLIC** — consumers inherit include paths / link flags
-- **PRIVATE** — only this library sees them
+- PUBLIC dependencies are inherited by consumers, PRIVATE ones only by the library.
+- `LIB_RSC` files are copied to `data/<target>/` of the build output; discovered tests
+  run in `bin/` and open `../data/<target>/<file>`.
+- Warnings are applied with `buildkit_set_warnings`.
 
-## Disable generation
+## `create_application`
 
-If you manage trees entirely by hand:
-
-```bash
-cmake --preset default -DGENERATE_SCAFFOLD=OFF
+```cmake
+create_application(NAME MathConsole ENTRY Console
+    SOURCES MathConsole.cpp DEPENDENCIES Math::Math)
 ```
 
-Remember to keep `libraries/CMakeLists.txt` and `applications/CMakeLists.txt` in sync with `add_subdirectory(...)` entries.
+`ENTRY` is `Console` or `WX_ui` (a WIN32 or bundle executable). A product that
+defines `BUILD_WX_UI` guards `WX_ui` calls with `if(BUILD_WX_UI)`. `COMPONENT`
+puts the app into a named install component.
 
-## Qt UI apps
+## `generate_libraries`
 
-1. Install Qt 5 or 6 and ensure CMake can find it (`CMAKE_PREFIX_PATH` / `Qt6_DIR`).
-2. Configure with `-DBUILD_QT_UI=ON`.
-3. New scaffolds get a `*_Qt_UI` app when Qt is found at generation time.
-4. Existing libraries need a manual Qt app (copy from `cmake/template/app/`).
+```cmake
+set(MYAPP_LIBRARIES Core Math)
+generate_libraries(
+    LIBRARIES_LIST     ${MYAPP_LIBRARIES}
+    LIBRARIES_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/libraries
+    APPS_LOCATION      ${CMAKE_CURRENT_SOURCE_DIR}/applications
+    TEMPLATE_LOCATION  ${BUILDKIT_ROOT}/template)
+```
 
-## Checklist for a production-ready library
+For each name without a folder under `LIBRARIES_LOCATION` it writes the library
+(CMakeLists, public header, sources, a GoogleTest file) and appends
+`add_subdirectory(<Lib>)` to `libraries/CMakeLists.txt`. With `APPS_LOCATION` it
+also writes a console app and a wxWidgets app (the latter builds only when
+wxWidgets is found). Existing folders are never touched. Set
+`-DGENERATE_SCAFFOLD=OFF` in a product that manages its trees by hand.
 
-- [ ] Public headers document intent (brief comments are enough)
-- [ ] Implementation details stay in `*_impl`
-- [ ] Unit tests cover happy path and edge cases
-- [ ] No includes from other libraries’ `src/`
-- [ ] CI green (format, build, test)
+A product template folder with the pre-buildkit file names still works.
+Templates are configured with `${var}` substitution; `${VAR_MARKER_START}x${VAR_MARKER_END}`
+writes a literal `${x}`.
+
+## `generate_project`
+
+```cmake
+generate_project(NAME MyApp DESTINATION ${dir} LIBRARIES Core)
+```
+
+Writes `CMakeLists.txt`, `CMakePresets.json` and `.gitignore` from
+`template/project/`, and copies `loader/buildkit.cmake` to `cmake/buildkit.cmake`.
+Existing files are kept. The presets are `default`, `debug`, `coverage`, `asan`
+and `ci`, all with their binary dir under `build/`.
+
+### Without a project: `cmake -P`
+
+`generate_project` needs no compiler or `project()`, so a three-line script
+generates a new product from a buildkit checkout. Save it as `gen.cmake`:
+
+```cmake
+cmake_minimum_required(VERSION 3.29)
+include(${BUILDKIT_DIR}/cmake/Buildkit.cmake)
+generate_project(NAME MyApp DESTINATION ${DEST} LIBRARIES Core)
+```
+
+and run it with absolute paths:
+
+```bash
+cmake -DBUILDKIT_DIR=/path/to/buildkit -DDEST=/path/to/MyApp -P gen.cmake
+```
+
+Keep `cmake_minimum_required(VERSION 3.29)` as the first line: without it CMake
+prints a policy warning (CMP0011) for each buildkit module in script mode. The
+result is `MyApp/CMakeLists.txt`, `CMakePresets.json`, `.gitignore` and
+`cmake/buildkit.cmake`, with `Core` in the library list.
+
+## Checklist for a library
+
+- [ ] Public headers in `include/`, implementation details in `src/`
+- [ ] Unit tests cover the happy path and edge cases
+- [ ] No includes from another library's `src/`
+- [ ] CI green

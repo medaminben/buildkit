@@ -1,0 +1,11 @@
+#ifndef ${lib_GUARD}_IMPL_H
+#define ${lib_GUARD}_IMPL_H
+
+namespace ${lib_NAMESPACE} {
+
+unsigned int get_the_answer_impl();
+int multiply_impl(int lhs, int rhs);
+
+}  // namespace ${lib_NAMESPACE}
+
+#endif  // ${lib_GUARD}_IMPL_H

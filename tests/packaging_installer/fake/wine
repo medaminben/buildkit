@@ -1,0 +1,3 @@
+#!/bin/sh
+# Fake wine: records one argument per line to $BUILDKIT_FAKE_LOG.
+for a in "$@"; do printf '%s\n' "$a"; done > "$BUILDKIT_FAKE_LOG"
