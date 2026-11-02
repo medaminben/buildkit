@@ -84,6 +84,28 @@ Writes `CMakeLists.txt`, `CMakePresets.json` and `.gitignore` from
 Existing files are kept. The presets are `default`, `debug`, `coverage`, `asan`
 and `ci`, all with their binary dir under `build/`.
 
+### Without a project: `cmake -P`
+
+`generate_project` needs no compiler or `project()`, so a three-line script
+generates a new product from a buildkit checkout. Save it as `gen.cmake`:
+
+```cmake
+cmake_minimum_required(VERSION 3.29)
+include(${BUILDKIT_DIR}/cmake/Buildkit.cmake)
+generate_project(NAME MyApp DESTINATION ${DEST} LIBRARIES Core)
+```
+
+and run it with absolute paths:
+
+```bash
+cmake -DBUILDKIT_DIR=/path/to/buildkit -DDEST=/path/to/MyApp -P gen.cmake
+```
+
+Keep `cmake_minimum_required(VERSION 3.29)` as the first line: without it CMake
+prints a policy warning (CMP0011) for each buildkit module in script mode. The
+result is `MyApp/CMakeLists.txt`, `CMakePresets.json`, `.gitignore` and
+`cmake/buildkit.cmake`, with `Core` in the library list.
+
 ## Checklist for a library
 
 - [ ] Public headers in `include/`, implementation details in `src/`
