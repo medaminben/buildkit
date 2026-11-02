@@ -273,7 +273,14 @@ jobs:
           for preset in "${extras[@]}"; do run_preset "$preset"; done
       - name: Coverage report
         if: inputs.coverage
-        run: cmake --build --preset coverage --target coverage
+        env:
+          WITH_XVFB: ${{ inputs.xvfb }}
+        run: |
+          set -euo pipefail
+          # The coverage target runs the tests, so it needs the same display as the test step.
+          runner=()
+          if [ "$WITH_XVFB" = "true" ]; then runner=(xvfb-run -a); fi
+          "${runner[@]}" cmake --build --preset coverage --target coverage
       - name: Upload coverage HTML
         if: inputs.coverage
         uses: actions/upload-artifact@v4
