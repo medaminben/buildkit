@@ -1,7 +1,7 @@
 {
-  "name": "unitpro",
+  "name": "buildkit",
   "private": true,
-  "description": "Dev tooling for UnitPro C++ boilerplate (format hooks, commit lint)",
+  "description": "Lint tooling for buildkit (commitlint, cmake style check)",
   "scripts": {
     "prepare": "husky",
     "format": "clang-format -i $(git ls-files '*.cpp' '*.h' '*.hpp' '*.cc' '*.cxx')",
