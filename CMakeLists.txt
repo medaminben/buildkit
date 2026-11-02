@@ -11,7 +11,8 @@ include(CTest)
 find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
 
 # buildkit_add_fixture_test(NAME <n> DIR <dir> [ARGS <cmake args>...]
-#                           [ENV <VAR=value>] [EXPECT_FAIL] [EXPECT_OUTPUT <regex>] [BUILD])
+#                           [ENV <VAR=value>] [EXPECT_FAIL] [EXPECT_OUTPUT <regex>]
+#                           [FORBID_OUTPUT <regex>] [BUILD])
 #
 # Configures tests/<dir> into build/tests/<n> with -DBUILDKIT_DIR=<buildkit>.
 # The binary dir is removed first so every run starts from a clean cache.
@@ -21,12 +22,13 @@ find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
 #   EXPECT_FAIL    configure must fail
 #   EXPECT_OUTPUT  stdout+stderr of the configure must match the regex
 #                  (combinable with EXPECT_FAIL)
+#   FORBID_OUTPUT  the output must NOT match the regex
 #   BUILD          after a successful configure also run `cmake --build` and
 #                  `ctest --test-dir` on the fixture; any failure fails
 # ARGS are joined with '|' for transport, so an ARGS element must not contain
 # '|' or ';' (CMake lists split on ';'); spaces inside an element are preserved.
 function(buildkit_add_fixture_test)
-    cmake_parse_arguments(PARSE_ARGV 0 ft "EXPECT_FAIL;BUILD" "NAME;DIR;EXPECT_OUTPUT;ENV" "ARGS")
+    cmake_parse_arguments(PARSE_ARGV 0 ft "EXPECT_FAIL;BUILD" "NAME;DIR;EXPECT_OUTPUT;FORBID_OUTPUT;ENV" "ARGS")
     if(NOT ft_NAME OR NOT ft_DIR)
         message(FATAL_ERROR "buildkit_add_fixture_test: NAME and DIR are required")
     endif()
@@ -58,6 +60,7 @@ function(buildkit_add_fixture_test)
             "-DFIXTURE_ENV=${ft_ENV}"
             -DEXPECT_FAIL=${ft_EXPECT_FAIL}
             "-DEXPECT_OUTPUT=${ft_EXPECT_OUTPUT}"
+            "-DFORBID_OUTPUT=${ft_FORBID_OUTPUT}"
             -DBUILD=${ft_BUILD}
             -P ${CMAKE_SOURCE_DIR}/tests/run_fixture.cmake)
 endfunction()
@@ -104,6 +107,12 @@ buildkit_add_fixture_test(NAME dependency_source_dir_override DIR dependency/sou
     ARGS -DBUILDKIT_OFFLINE=ON
          "-DFETCHCONTENT_SOURCE_DIR_TINY=${CMAKE_SOURCE_DIR}/tests/dependency/data/tiny-src"
     EXPECT_OUTPUT "tiny: local source")
+# REQUIRED and offline with no installed copy: stop with the bootstrap and install
+# hints, and never probe or download.
+buildkit_add_fixture_test(NAME dependency_offline_required DIR dependency/missing_required
+    EXPECT_FAIL ARGS -DBUILDKIT_OFFLINE=ON
+    EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*offline\\):.*bootstrap\\.sh.*apt install libnosuchpkg-dev"
+    FORBID_OUTPUT "probing|downloading http|Downloading|unreachable")
 set_tests_properties(dependency_missing_optional dependency_offline_optional
     PROPERTIES TIMEOUT 35)
 # A host that drops packets costs the full 30 s probe timeout.
@@ -134,6 +143,13 @@ buildkit_add_fixture_test(NAME layout_generate_legacy DIR layout/generate_legacy
     EXPECT_OUTPUT "LAYOUT_GENERATE_LEGACY_OK")
 buildkit_add_fixture_test(NAME layout_project DIR layout/project BUILD
     EXPECT_OUTPUT "LAYOUT_PROJECT_OK")
+
+# Install the flat layout and consume it with find_package + Vision::Vision.
+add_test(NAME install_flat
+    COMMAND ${CMAKE_COMMAND} -DBUILDKIT_DIR=${CMAKE_SOURCE_DIR}
+            -DWORK_DIR=${CMAKE_SOURCE_DIR}/build/tests/install_flat
+            -P ${CMAKE_SOURCE_DIR}/tests/install_flat/run.cmake)
+set_tests_properties(install_flat PROPERTIES PASS_REGULAR_EXPRESSION "INSTALL_FLAT_OK")
 
 # Loader (loader/buildkit.cmake); fetch cases use a file:// repo built under build/.
 foreach(case local env sibling bad_dir offline twice fetch cached_offline

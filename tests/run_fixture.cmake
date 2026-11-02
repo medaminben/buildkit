@@ -6,6 +6,7 @@
 #   FIXTURE_ENV    VAR=value set for the configure; BUILDKIT_OFFLINE and
 #                  FETCHCONTENT_FULLY_DISCONNECTED are always unset first, so a
 #                  developer's shell cannot change a test
+#   FORBID_OUTPUT  regex that the configure output must not match
 #   BUILD          ON: after a successful configure run `cmake --build` and
 #                  `ctest --test-dir` on the fixture; any failure fails
 # Any mismatch ends in FATAL_ERROR (the test fails).
@@ -44,6 +45,10 @@ endif()
 
 if(EXPECT_OUTPUT AND NOT all MATCHES "${EXPECT_OUTPUT}")
     message(FATAL_ERROR "output does not match regex: ${EXPECT_OUTPUT}")
+endif()
+
+if(FORBID_OUTPUT AND all MATCHES "${FORBID_OUTPUT}")
+    message(FATAL_ERROR "output matches the forbidden regex: ${FORBID_OUTPUT}")
 endif()
 
 if(BUILD AND NOT EXPECT_FAIL)
