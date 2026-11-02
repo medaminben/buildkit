@@ -10,6 +10,10 @@ Beta: an open series (highest beta base greater than the latest stable) is
 continued when its base is at least the base the labels ask for; otherwise a
 new series target-beta.1 starts.
 
+Re-run: when the merge commit already carries a tag of the planned kind (a stable
+tag for main, a beta tag for Beta), that tag is returned again instead of a new
+one, so re-running a failed release job does not create a second release.
+
 Beta to main promotion: a merge from the Beta branch of the same repository
 into main releases the base X.Y.Z of the highest beta tag reachable from the
 merge commit that is greater than the latest stable. Without such a beta (a
@@ -62,12 +66,24 @@ def latest_stable(repo: str) -> str | None:
     return _highest(_tags(repo), _stable_key)
 
 
+def existing_tag(repo: str, base_branch: str, sha: str) -> str | None:
+    """The tag of the planned kind that already points at sha, if any."""
+    key = _stable_key if base_branch == "main" else _beta_key
+    return _highest(_tags(repo, "--points-at", sha), key)
+
+
 def plan_tag(repo, labels, base_branch, head_branch, sha, from_fork=False) -> str | None:
     """Return the next tag, or None for no release.
+
+    A tag of the planned kind that already points at sha is returned as it is
+    (the release is being re-run).
 
     head_branch is only a promotion when it is Beta of the same repository
     (from_fork False).
     """
+    already = existing_tag(repo, base_branch, sha)
+    if already is not None:
+        return already
     stable = latest_stable(repo)
     stable_arg = stable[1:] if stable else None
     normal = next_version(stable_arg, labels, "main")  # validates the labels too
@@ -96,7 +112,8 @@ def plan_tag(repo, labels, base_branch, head_branch, sha, from_fork=False) -> st
 
 
 def notes(repo: str, base_branch: str, sha: str) -> str:
-    reachable = _tags(repo, "--merged", sha)
+    at_sha = set(_tags(repo, "--points-at", sha))  # a re-run: not its own previous tag
+    reachable = [t for t in _tags(repo, "--merged", sha) if t not in at_sha]
     previous = _highest(reachable, _stable_key)
     if base_branch == "Beta":
         both = [t for t in reachable if _stable_key(t) or _beta_key(t)]

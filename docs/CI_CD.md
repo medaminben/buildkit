@@ -132,6 +132,19 @@ jobs:
 
 The installer workflow must declare `on: workflow_dispatch` in the product's repository.
 
+Merged pull requests from forks: a `pull_request` run for a fork PR gets a
+read-only token, so tagging fails. The caller must trigger on `pull_request_target`
+(with `types: [closed]`) for such PRs. This is safe because `release.yml` never
+checks out or runs code of the pull request: its first checkout has no `ref` and
+so is the base repository's default branch (used only for history and tags),
+buildkit comes from a fixed repository and ref, and the PR contributes only labels,
+branch names and the merge commit SHA, passed to the shell as environment variables.
+
+Re-running a failed release job is safe: when the merge commit already carries a
+tag of the planned kind (a stable tag on `main`, a beta tag on `Beta`), that tag
+is reused and is not created again, and the GitHub release is created only if it
+is missing.
+
 ### Labels
 
 The bump comes from the label of the merged PR: `semver:major`, `semver:minor`,

@@ -77,7 +77,7 @@ class PlanReleaseTest(unittest.TestCase):
         self.assertEqual(self.plan([], "main", "Beta"), "v1.6.0")
 
     def test_promotion_ignores_betas_not_greater_than_stable(self):
-        git(self.repo, "tag", "-a", "v1.6.0", "-m", "r")
+        git(self.repo, "tag", "-a", "v1.6.0", "-m", "r", "HEAD~1")
         self.assertEqual(self.plan([], "main", "Beta"), "v1.6.1")
 
     def test_promotion_with_semver_none_is_no_release(self):
@@ -86,6 +86,28 @@ class PlanReleaseTest(unittest.TestCase):
     def test_conflicting_labels_raise(self):
         with self.assertRaises(ValueError):
             self.plan(["semver:minor", "semver:major"], "main", "Beta")
+
+    def test_rerun_on_main_reuses_the_stable_tag_of_the_sha(self):
+        self.assertEqual(self.plan([], "main", "feature/x"), "v1.5.5")
+        git(self.repo, "tag", "-a", "v1.5.5", "-m", "r", self.sha)
+        self.assertEqual(self.plan([], "main", "feature/x"), "v1.5.5")
+        # also when the labels would now ask for something else
+        self.assertEqual(self.plan(["semver:minor"], "main", "feature/x"), "v1.5.5")
+
+    def test_rerun_on_beta_reuses_the_beta_tag_of_the_sha(self):
+        git(self.repo, "tag", "-a", "v1.6.0-beta.3", "-m", "r", self.sha)
+        self.assertEqual(self.plan([], "Beta"), "v1.6.0-beta.3")
+
+    def test_tag_of_the_other_kind_is_not_reused(self):
+        git(self.repo, "tag", "-a", "v1.6.0-beta.3", "-m", "r", self.sha)
+        self.assertEqual(self.plan([], "main", "feature/x"), "v1.5.5")
+        git(self.repo, "tag", "-a", "v1.6.0", "-m", "r", self.sha)
+        self.assertEqual(self.plan([], "Beta"), "v1.6.0-beta.3")
+
+    def test_notes_of_a_rerun_do_not_start_at_the_sha_itself(self):
+        git(self.repo, "tag", "-a", "v1.5.5", "-m", "r", self.sha)
+        self.assertEqual(plan_release.notes(self.repo, "main", self.sha).splitlines()[0],
+                         "- fix: merge")
 
     def test_notes_on_main_skip_betas(self):
         text = plan_release.notes(self.repo, "main", self.sha)
