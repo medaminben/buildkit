@@ -18,7 +18,7 @@
 # the caller must trigger on "pull_request_target" instead (same types). This is
 # safe here because the workflow never checks out or runs code of the pull
 # request: the first checkout has no ref, so under pull_request_target it is the
-# base repository's default branch (history and tags only, used for git commands),
+# pull request's base branch (history and tags only, used for git commands),
 # buildkit comes from a fixed repository and ref, and the PR contributes only its
 # labels, branch names and merge commit SHA, which reach the shell through env
 # variables.
