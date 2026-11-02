@@ -68,8 +68,7 @@ else()
         if(NOT _bk_cache)
             message(FATAL_ERROR
                 "buildkit: no local copy and offline mode is on. Set BUILDKIT_DIR to "
-                "a buildkit checkout, or put one at ${CMAKE_SOURCE_DIR}/../buildkit. "
-                "Install the tools with redev/bootstrap/bootstrap.sh")
+                "a buildkit checkout, or put one at ${CMAKE_SOURCE_DIR}/../buildkit")
         endif()
         set(_bk_use_cache TRUE)
     else()
@@ -77,7 +76,7 @@ else()
         if(NOT GIT_EXECUTABLE)
             message(FATAL_ERROR
                 "buildkit: git not found, cannot fetch ${BUILDKIT_REPOSITORY}. Set "
-                "BUILDKIT_DIR or install git (redev/bootstrap/bootstrap.sh)")
+                "BUILDKIT_DIR or install git")
         endif()
         # Probe first so a dead network fails in 30 s and not after minutes.
         execute_process(
@@ -88,7 +87,7 @@ else()
             if(NOT _bk_cache)
                 message(FATAL_ERROR
                     "buildkit: cannot reach ${BUILDKIT_REPOSITORY} (tag ${BUILDKIT_TAG}). Set "
-                    "BUILDKIT_DIR to a local checkout (redev/bootstrap/bootstrap.sh)")
+                    "BUILDKIT_DIR to a local checkout")
             endif()
             set(_bk_use_cache TRUE)
         endif()
@@ -100,7 +99,7 @@ else()
                 "buildkit: the cached copy in ${_bk_src} is tag "
                 "'${_bk_cached_tag}', but BUILDKIT_TAG is ${BUILDKIT_TAG}, and buildkit "
                 "cannot be fetched (offline or unreachable). Set BUILDKIT_DIR, or "
-                "reconfigure online (redev/bootstrap/bootstrap.sh)")
+                "reconfigure online")
         endif()
         set(_bk_from "tag ${BUILDKIT_TAG}, cached")
     else()

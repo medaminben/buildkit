@@ -38,7 +38,8 @@
 #           fails; a WARNING names both revisions if it is not at FETCH_TAG.
 # 4. Otherwise OPTIONAL: <FOUND_VAR> FALSE and a WARNING; REQUIRED: FATAL_ERROR.
 #    Both name the cause (not installed / no network / offline / SHA-256
-#    mismatch / git missing) and redev/bootstrap/bootstrap.sh.
+#    mismatch / git missing) and say to install it with the system package
+#    manager; INSTALL_HINT adds the exact package (REQUIRED and OPTIONAL).
 #
 # <FOUND_VAR> is TRUE or FALSE in the caller's scope.
 #
@@ -91,10 +92,10 @@ function(_dev_dependency_unavailable name required cause detail hint)
     endif()
     if(required)
         message(FATAL_ERROR "${name} not available (${cause}): cannot build without it. "
-                            "Install with redev/bootstrap/bootstrap.sh${hint_text}")
+                            "Install it with the system package manager${hint_text}")
     else()
         message(WARNING "${name} not available (${cause}): building without it. "
-                        "Install with redev/bootstrap/bootstrap.sh")
+                        "Install it with the system package manager${hint_text}")
     endif()
 endfunction()
 

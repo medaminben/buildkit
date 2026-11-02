@@ -205,7 +205,7 @@ conan install --requires=zlib/1.3.1 -pr:h conan/profiles/windows-mingw \
     -pr:b conan/profiles/linux-gcc --build=missing -of build/conan-smoke
 ```
 
-The cross toolchain comes from `bootstrap.sh --with cross`. Conan is installed
+The cross toolchain is the mingw-w64 posix toolchain (on Debian: `apt install g++-mingw-w64-x86-64-posix`). Conan is installed
 with `uv tool install conan`.
 
 Verification: `conan profile show` with both profiles succeeds (Conan 2.34.0).

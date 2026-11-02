@@ -5,7 +5,7 @@ cmake_policy(SET CMP0054 NEW)
 #   env           BUILDKIT_DIR in the environment only
 #   sibling       no BUILDKIT_DIR; the product sits next to a symlink "buildkit"
 #   bad_dir       BUILDKIT_DIR without cmake/Buildkit.cmake: fatal, names the path
-#   offline       nothing local, BUILDKIT_OFFLINE=ON: fatal, names BUILDKIT_DIR + bootstrap
+#   offline       nothing local, BUILDKIT_OFFLINE=ON: fatal, names BUILDKIT_DIR
 #   twice         the loader included twice: configures, one "using" line
 #   fetch         tag fetched from a file:// repo into <bin>/_buildkit/src
 #   cached_offline  after a fetch, offline: the cache is used ("cached")
@@ -108,10 +108,10 @@ elseif(CASE STREQUAL "bad_dir")
     expect_fail("${all}" ${rc} "no-such-buildkit.*cmake/Buildkit.cmake")
 elseif(CASE STREQUAL "offline")
     run(all rc ENV ${unset_env} ARGS -DBUILDKIT_OFFLINE=ON)
-    expect_fail("${all}" ${rc} "BUILDKIT_DIR.*bootstrap.sh")
+    expect_fail("${all}" ${rc} "BUILDKIT_DIR")
 elseif(CASE STREQUAL "offline_env")
     run(all rc ENV ${unset_env} BUILDKIT_OFFLINE=1)
-    expect_fail("${all}" ${rc} "BUILDKIT_DIR.*bootstrap.sh")
+    expect_fail("${all}" ${rc} "BUILDKIT_DIR")
 else()
     make_remote()
     set(online -DBUILDKIT_REPOSITORY=${REMOTE} -DBUILDKIT_TAG=v9.9.9)

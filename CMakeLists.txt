@@ -77,7 +77,7 @@ buildkit_add_fixture_test(NAME harness_ok_output DIR harness/ok
     ARGS "-DMY_ARG=a b c" EXPECT_OUTPUT "HARNESS_OK arg=\\[a b c\\]")
 buildkit_add_fixture_test(NAME harness_fail DIR harness/fail EXPECT_FAIL)
 buildkit_add_fixture_test(NAME harness_fail_output DIR harness/fail
-    EXPECT_FAIL EXPECT_OUTPUT "bootstrap.sh")
+    EXPECT_FAIL EXPECT_OUTPUT "package manager")
 buildkit_add_fixture_test(NAME harness_build DIR harness/built BUILD)
 
 # dev_dependency (cmake/Dependency.cmake). CMake wraps long messages, so the
@@ -87,7 +87,7 @@ buildkit_add_fixture_test(NAME dependency_found DIR dependency/found
 buildkit_add_fixture_test(NAME dependency_missing_optional DIR dependency/missing_optional
     EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*no network\\):.*building.*without")
 buildkit_add_fixture_test(NAME dependency_missing_required DIR dependency/missing_required
-    EXPECT_FAIL EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*no network\\):.*cannot.*build.*redev/bootstrap/bootstrap\\.sh.*apt.*install.*libnosuchpkg-dev")
+    EXPECT_FAIL EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*no network\\):.*cannot.*build.*package manager.*apt.*install.*libnosuchpkg-dev")
 buildkit_add_fixture_test(NAME dependency_offline_optional DIR dependency/offline_optional
     ARGS -DBUILDKIT_OFFLINE=ON
     EXPECT_OUTPUT "NoSuchGTestName not available \\(not installed,.*offline\\):.*building.*without")
@@ -107,11 +107,11 @@ buildkit_add_fixture_test(NAME dependency_source_dir_override DIR dependency/sou
     ARGS -DBUILDKIT_OFFLINE=ON
          "-DFETCHCONTENT_SOURCE_DIR_TINY=${CMAKE_SOURCE_DIR}/tests/dependency/data/tiny-src"
     EXPECT_OUTPUT "tiny: local source")
-# REQUIRED and offline with no installed copy: stop with the bootstrap and install
+# REQUIRED and offline with no installed copy: stop with the package-manager and install
 # hints, and never probe or download.
 buildkit_add_fixture_test(NAME dependency_offline_required DIR dependency/missing_required
     EXPECT_FAIL ARGS -DBUILDKIT_OFFLINE=ON
-    EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*offline\\):.*bootstrap\\.sh.*apt install libnosuchpkg-dev"
+    EXPECT_OUTPUT "NoSuchPkg not available \\(not installed,.*offline\\):.*package manager.*apt install libnosuchpkg-dev"
     FORBID_OUTPUT "probing|downloading http|Downloading|unreachable")
 set_tests_properties(dependency_missing_optional dependency_offline_optional
     PROPERTIES TIMEOUT 35)

@@ -38,8 +38,8 @@ It prints `buildkit: using <path> (local working copy | tag vX.Y.Z)`. With
 environment variable) and no local copy it
 reuses a copy fetched earlier for the same tag (`tag vX.Y.Z, cached`; the same
 applies when the remote does not answer). A cached copy of another tag, or no
-copy at all, is an error, because buildkit itself is required; run
-`redev/bootstrap/bootstrap.sh` or set `BUILDKIT_DIR`. A changed tag is fetched
+copy at all, is an error, because buildkit itself is required; set
+`BUILDKIT_DIR` to a local checkout. A changed tag is fetched
 again when online. The loader needs no compiler
 and is safe to include twice.
 
@@ -70,8 +70,8 @@ automatically; a product does `include(InstallConfig)` when it wants it.
 `dev_dependency(<Name> ...)` uses an installed copy first, else fetches it
 (archive with SHA-256, or git tag), else builds without it for `OPTIONAL`
 (the default) or stops with an error for `REQUIRED`. Both messages name the cause
-(not installed, no network, offline) and the bootstrap script; `INSTALL_HINT "apt install libfoo-dev"`
-adds the package name to the `REQUIRED` error. Offline mode
+(not installed, no network, offline) and say to install it with the system package
+manager; `INSTALL_HINT "apt install libfoo-dev"` adds the exact package to both. Offline mode
 (`BUILDKIT_OFFLINE` or `FETCHCONTENT_FULLY_DISCONNECTED`, also as environment variables; the
 switches are OR'ed, so `-DBUILDKIT_OFFLINE=OFF` cannot undo an environment variable) never touches the
 network, and an unreachable host is detected by a 30 second probe instead of a
