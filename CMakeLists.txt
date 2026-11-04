@@ -151,6 +151,13 @@ add_test(NAME install_flat
             -P ${CMAKE_SOURCE_DIR}/tests/install_flat/run.cmake)
 set_tests_properties(install_flat PROPERTIES PASS_REGULAR_EXPRESSION "INSTALL_FLAT_OK")
 
+# scripts/new-project.sh, run from an empty folder as a user would.
+add_test(NAME new_project
+    COMMAND ${CMAKE_COMMAND} -DBUILDKIT_DIR=${CMAKE_SOURCE_DIR}
+            -DWORK_DIR=${CMAKE_SOURCE_DIR}/build/tests/new_project
+            -P ${CMAKE_SOURCE_DIR}/tests/new_project/run.cmake)
+set_tests_properties(new_project PROPERTIES PASS_REGULAR_EXPRESSION "NEW_PROJECT_OK")
+
 # Loader (loader/buildkit.cmake); fetch cases use a file:// repo built under build/.
 foreach(case local env sibling bad_dir offline twice fetch cached_offline
                 disconnected stale_offline tagchange dead_cached

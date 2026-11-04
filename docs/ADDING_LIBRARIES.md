@@ -106,6 +106,28 @@ prints a policy warning (CMP0011) for each buildkit module in script mode. The
 result is `MyApp/CMakeLists.txt`, `CMakePresets.json`, `.gitignore` and
 `cmake/buildkit.cmake`, with `Core` in the library list.
 
+### Ready to run: `scripts/new-project.sh`
+
+On Linux, one command does all of the above and more. Run it from the new,
+empty project folder:
+
+```bash
+mkdir ~/Dokumente/dev/MyApp && cd ~/Dokumente/dev/MyApp
+bash /path/to/buildkit/scripts/new-project.sh [Name] [Lib...]
+```
+
+`Name` defaults to the folder name and the library list to `Core`. The script:
+
+1. runs `generate_project`;
+2. writes a git-ignored `CMakeUserPresets.json` with the presets `dev` and
+   `dev-release`, which point `BUILDKIT_DIR` at the buildkit it was started from;
+3. writes `.vscode/` files: Ctrl+Shift+B builds, F5 builds and runs `<first Lib>_Console`;
+4. configures (this generates `libraries/<Lib>/` and `applications/<Lib>/`),
+   builds, runs the tests and starts the console app.
+
+Existing files are kept. It needs `cmake`, `ninja` and `g++`, and refuses to run
+inside the buildkit checkout.
+
 ## Checklist for a library
 
 - [ ] Public headers in `include/`, implementation details in `src/`

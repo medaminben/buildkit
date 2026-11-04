@@ -22,7 +22,9 @@ set(${PROJECT_NAME}_VERSION_FULL "${MYAPP_VERSION_FULL}")
 
 A new product can be generated instead: `generate_project(NAME MyApp DESTINATION <dir> LIBRARIES Core)`
 writes `CMakeLists.txt`, `CMakePresets.json`, `.gitignore` and the loader copy
-(see [docs/ADDING_LIBRARIES.md](docs/ADDING_LIBRARIES.md)).
+(see [docs/ADDING_LIBRARIES.md](docs/ADDING_LIBRARIES.md)). On Linux,
+`scripts/new-project.sh`, run from an empty folder, also sets up VS Code, builds,
+tests and runs the new product in one go.
 
 The loader finds buildkit in this order:
 
