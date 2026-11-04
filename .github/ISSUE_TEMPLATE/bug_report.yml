@@ -1,0 +1,50 @@
+name: Bug report
+description: Something configures, builds, packages or releases wrong.
+labels: [bug]
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Loader (loader/buildkit.cmake)
+        - dev_dependency (cmake/Dependency.cmake)
+        - create_library / create_application / generate_*
+        - Project templates / scripts/new-project.sh
+        - Packaging / Windows installer
+        - Manual builder
+        - Reusable workflows (ci, codeql, release)
+        - Release tools
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest CMakeLists.txt or workflow call that shows it, if you can.
+      placeholder: |
+        1. cmake --preset debug
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: 'buildkit tag or commit (the "buildkit: using ..." line), OS, compiler, CMake, generator.'
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Configure or build output, or the failing workflow run.
+      render: text
