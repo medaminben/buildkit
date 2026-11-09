@@ -214,7 +214,9 @@ jobs:
           # Products need cmake >= 3.29, which the ubuntu apt cmake may not have.
           python3 -m pip install "cmake==3.31.*"
           packages=(ninja-build g++)
-          if [[ "$COMPILERS" == *clang* ]]; then packages+=(clang-18); fi
+          # clang-tools-18 has clang-scan-deps-18, which CMake needs to scan C++20
+          # sources for modules when it generates for Ninja.
+          if [[ "$COMPILERS" == *clang* ]]; then packages+=(clang-18 clang-tools-18); fi
           if [ "$WITH_COVERAGE" = "true" ]; then packages+=(lcov); fi
           if [ "$WITH_XVFB" = "true" ]; then packages+=(xvfb); fi
           read -r -a extra <<< "$APT_PACKAGES"
