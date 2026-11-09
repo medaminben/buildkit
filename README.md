@@ -1,11 +1,74 @@
 # buildkit
 
+<p align="center">
+  <a href="https://github.com/medaminben/buildkit/actions/workflows/self-test.yml"><img alt="Self-test" src="https://github.com/medaminben/buildkit/actions/workflows/self-test.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/medaminben/buildkit/tags"><img alt="version" src="https://img.shields.io/github/v/tag/medaminben/buildkit?label=version"></a>
+  <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C">
+  <img alt="CMake 3.29" src="https://img.shields.io/badge/CMake-3.29-064F8C">
+  <img alt="platform: Windows | Linux" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-555">
+  <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/github/license/medaminben/buildkit"></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#documentation">Docs</a> ·
+  <a href="docs/CI_CD.md">CI/CD</a> ·
+  <a href="https://github.com/medaminben/buildkit/tags">Versions</a>
+</p>
+
 A reusable CMake kit for C++20 products: one loader file, a handful of modules
 and reusable GitHub workflows. A product keeps its code; buildkit supplies the
 build helpers, the dependency rule, versioning from git tags, packaging, CI and
 releases.
 
 ## Quick start
+
+### A new project
+
+Clone buildkit once, then run the setup script from a new, empty folder. That
+folder must be outside the buildkit checkout.
+
+Linux (needs `cmake`, `ninja` and `g++`):
+
+```bash
+git clone https://github.com/medaminben/buildkit.git ~/dev/buildkit
+mkdir ~/dev/MyApp && cd ~/dev/MyApp
+bash ~/dev/buildkit/scripts/new-project.sh
+```
+
+Windows (needs `cmake`, `ninja` and `g++` from MSYS2 UCRT64 on `PATH`, e.g.
+`C:\msys64\ucrt64\bin`):
+
+```powershell
+git clone https://github.com/medaminben/buildkit.git $HOME\dev\buildkit
+mkdir $HOME\dev\MyApp; cd $HOME\dev\MyApp
+powershell -ExecutionPolicy Bypass -File $HOME\dev\buildkit\scripts\new-project.ps1
+```
+
+The script:
+
+1. writes `CMakeLists.txt`, `CMakePresets.json`, `.gitignore` and the loader copy
+   `cmake/buildkit.cmake`;
+2. writes a git-ignored `CMakeUserPresets.json` with the presets `dev` and
+   `dev-release`, which point at your buildkit checkout;
+3. writes `.vscode/` files: Ctrl+Shift+B builds, F5 builds and runs the console app;
+4. generates `libraries/Core/` and `applications/Core/`, builds, runs the tests
+   and starts `Core_Console`.
+
+Arguments, all optional:
+
+| Linux | Windows | Meaning |
+|---|---|---|
+| `Name` | `Name` | Project name; default: the folder name |
+| `Lib...` | `Lib...` | Libraries after the name; default: `Core` |
+| `--repo <owner>/<repo>` | `-Repo <owner>/<repo>` | Public product on GitHub: also writes `LICENSE` (MIT), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md` and the issue and PR templates |
+
+For example, `new-project.sh --repo medaminben/Pong Pong Physics Render`.
+Existing files are never overwritten, so running the script again is safe.
+Your code goes into `libraries/<Lib>/include/` and `src/`. More in
+[docs/ADDING_LIBRARIES.md](docs/ADDING_LIBRARIES.md).
+
+### An existing product
 
 Copy `loader/buildkit.cmake` to `cmake/buildkit.cmake` in your product and
 include it before `project()`:
@@ -22,7 +85,8 @@ set(${PROJECT_NAME}_VERSION_FULL "${MYAPP_VERSION_FULL}")
 
 A new product can be generated instead: `generate_project(NAME MyApp DESTINATION <dir> LIBRARIES Core)`
 writes `CMakeLists.txt`, `CMakePresets.json`, `.gitignore` and the loader copy
-(see [docs/ADDING_LIBRARIES.md](docs/ADDING_LIBRARIES.md)).
+(see [docs/ADDING_LIBRARIES.md](docs/ADDING_LIBRARIES.md)); this is what the
+setup scripts above call.
 
 The loader finds buildkit in this order:
 

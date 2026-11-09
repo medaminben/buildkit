@@ -1,0 +1,175 @@
+# Starts a new product "foo" from scratch with the setup scripts, on a clean
+# Ubuntu and a clean Windows runner, the way the README quick start says:
+#   Linux    scripts/new-project.sh  (cmake, ninja, g++)
+#   Windows  scripts/new-project.ps1 under Windows PowerShell 5.1, with the
+#            MSYS2 UCRT64 toolchain that redev's bootstrap.ps1 installs
+# Then checks that the result is right:
+#   1. the script builds, tests and runs foo (two libraries, public repo)
+#   2. every expected file is there, with the names filled in
+#   3. a second run changes nothing (existing files are kept)
+#   4. .gitignore keeps build output and machine-specific files out of git
+#   5. a fresh clone of the committed files configures, builds and tests with
+#      the product's own `ci` preset, without the local user presets
+#   6. the release preset builds and tests too
+name: New project
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: new-project-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  foo:
+    name: foo on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          python3 -m pip install "cmake==3.31.*"
+          sudo apt-get update
+          sudo apt-get install -y ninja-build g++
+      - uses: msys2/setup-msys2@v2
+        if: runner.os == 'Windows'
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+      - name: Put the toolchain on PATH (Windows)
+        if: runner.os == 'Windows'
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
+        run: printf '%s\\ucrt64\\bin\n' "$MSYS2_LOCATION" >> "$GITHUB_PATH"
+      - name: Show the tools and set the git identity
+        run: |
+          set -euo pipefail
+          cmake --version | head -n1
+          ninja --version
+          g++ --version | head -n1
+          git config --global user.name "CI Bot"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+          # D:/a/_temp/foo on Windows: one spelling for bash, PowerShell and git.
+          temp="$RUNNER_TEMP"
+          if command -v cygpath >/dev/null; then temp="$(cygpath -m "$RUNNER_TEMP")"; fi
+          mkdir -p "$temp/foo"
+          echo "FOO=$temp/foo" >> "$GITHUB_ENV"
+          echo "FOO_CLONE=$temp/foo-clone" >> "$GITHUB_ENV"
+
+      # 1. From scratch: an empty folder, one command.
+      - name: Run new-project.sh
+        if: runner.os == 'Linux'
+        working-directory: ${{ env.FOO }}
+        run: bash "$GITHUB_WORKSPACE/scripts/new-project.sh" --repo octo/foo foo Core Util
+      - name: Run new-project.ps1
+        if: runner.os == 'Windows'
+        working-directory: ${{ env.FOO }}
+        shell: powershell
+        run: |
+          & "$env:GITHUB_WORKSPACE\scripts\new-project.ps1" -Repo octo/foo foo Core Util
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # 2. The files and their contents.
+      - name: Check the generated files
+        working-directory: ${{ env.FOO }}
+        run: |
+          set -euo pipefail
+          for f in CMakeLists.txt CMakePresets.json CMakeUserPresets.json .gitignore \
+                   cmake/buildkit.cmake \
+                   libraries/Core/CMakeLists.txt libraries/Core/include/Core/Core.h \
+                   libraries/Util/CMakeLists.txt libraries/Util/include/Util/Util.h \
+                   applications/Core/Core_Console/Core_Console.cpp \
+                   .vscode/settings.json .vscode/tasks.json .vscode/launch.json \
+                   LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md \
+                   .github/ISSUE_TEMPLATE/bug_report.yml .github/ISSUE_TEMPLATE/feature_request.yml \
+                   .github/ISSUE_TEMPLATE/config.yml .github/pull_request_template.md; do
+            [ -e "$f" ] || { echo "::error::new-project did not create $f"; exit 1; }
+          done
+          ls build/debug/bin/Core_Console* build/debug/bin/test_core* build/debug/bin/test_util*
+          grep -q "project(foo " CMakeLists.txt || { echo "::error::CMakeLists.txt is not project foo"; exit 1; }
+          grep -q "Copyright (c) $(date +%Y) CI Bot" LICENSE \
+            || { echo "::error::LICENSE holder is not the git user"; exit 1; }
+          grep -q "github.com/octo/foo/security" SECURITY.md \
+            || { echo "::error::SECURITY.md does not link octo/foo"; exit 1; }
+          grep -q "Core_Console" .vscode/launch.json \
+            || { echo "::error::launch.json does not run Core_Console"; exit 1; }
+          if grep -rIl --exclude-dir=build '@project_' .; then
+            echo "::error::unfilled @project_...@ placeholders (files above)"; exit 1
+          fi
+          diff -q cmake/buildkit.cmake "$GITHUB_WORKSPACE/loader/buildkit.cmake"
+
+      # 3. + 4. Commit what git sees, run again, nothing may change.
+      - name: Commit the new project
+        working-directory: ${{ env.FOO }}
+        run: |
+          git init -q && git add -A && git commit -q -m "chore: start foo"
+      - name: Run new-project.sh a second time
+        if: runner.os == 'Linux'
+        working-directory: ${{ env.FOO }}
+        run: bash "$GITHUB_WORKSPACE/scripts/new-project.sh" --repo octo/foo foo Core Util
+      - name: Run new-project.ps1 a second time
+        if: runner.os == 'Windows'
+        working-directory: ${{ env.FOO }}
+        shell: powershell
+        run: |
+          & "$env:GITHUB_WORKSPACE\scripts\new-project.ps1" -Repo octo/foo foo Core Util
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check git status and what is committed
+        working-directory: ${{ env.FOO }}
+        run: |
+          set -euo pipefail
+          changes="$(git status --porcelain)"
+          if [ -n "$changes" ]; then
+            echo "::error::the second run changed or added files:"; echo "$changes"; exit 1
+          fi
+          tracked="$(git ls-files)"
+          for leak in '^build/' '^CMakeUserPresets.json$' '^\.vscode/' '_export\.h$'; do
+            if grep -E "$leak" <<< "$tracked"; then
+              echo "::error::.gitignore lets '$leak' into git"; exit 1
+            fi
+          done
+
+      # 5. A fresh clone has no user presets: the committed `ci` preset must work.
+      - name: Fresh clone builds with the ci preset
+        env:
+          BUILDKIT_DIR: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          git clone -q "$FOO" "$FOO_CLONE"
+          cd "$FOO_CLONE"
+          [ ! -e CMakeUserPresets.json ] || { echo "::error::CMakeUserPresets.json was committed"; exit 1; }
+          cmake --preset ci
+          cmake --build --preset ci
+          ctest --preset ci
+
+      # 6. Release build of the original folder.
+      - name: Release preset builds and tests
+        working-directory: ${{ env.FOO }}
+        run: |
+          set -euo pipefail
+          cmake --preset dev-release
+          cmake --build --preset dev-release
+          ctest --preset dev-release

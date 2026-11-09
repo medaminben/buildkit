@@ -84,6 +84,24 @@ Writes `CMakeLists.txt`, `CMakePresets.json` and `.gitignore` from
 Existing files are kept. The presets are `default`, `debug`, `coverage`, `asan`
 and `ci`, all with their binary dir under `build/`.
 
+### Public products: `REPOSITORY`
+
+```cmake
+generate_project(NAME MyApp DESTINATION ${dir} LIBRARIES Core
+    REPOSITORY medaminben/MyApp COPYRIGHT_HOLDER "Mohamed Lamine Ben Hassine")
+```
+
+`REPOSITORY <owner>/<repo>` marks a product that is public on GitHub. It also
+writes the files of GitHub's community checklist from `template/project/community/`:
+`LICENSE` (MIT, the current year and `COPYRIGHT_HOLDER`, default `<owner>`),
+`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `SECURITY.md`,
+`.github/ISSUE_TEMPLATE/` (bug report, feature request, private security link) and
+`.github/pull_request_template.md` (with the `semver:*` labels of `release.yml`).
+Leave `REPOSITORY` out for private and local products: they get none of these files.
+
+The security links work only once private vulnerability reporting is on:
+`gh api -X PUT repos/<owner>/<repo>/private-vulnerability-reporting`.
+
 ### Without a project: `cmake -P`
 
 `generate_project` needs no compiler or `project()`, so a three-line script
@@ -105,6 +123,32 @@ Keep `cmake_minimum_required(VERSION 3.29)` as the first line: without it CMake
 prints a policy warning (CMP0011) for each buildkit module in script mode. The
 result is `MyApp/CMakeLists.txt`, `CMakePresets.json`, `.gitignore` and
 `cmake/buildkit.cmake`, with `Core` in the library list.
+
+### Ready to run: `scripts/new-project.sh` and `scripts/new-project.ps1`
+
+One command does all of the above and more. Run it from the new, empty project
+folder. On Windows use `new-project.ps1` with the same arguments (`-Repo` instead
+of `--repo`; see the [README](../README.md#a-new-project)).
+
+```bash
+mkdir ~/Dokumente/dev/MyApp && cd ~/Dokumente/dev/MyApp
+bash /path/to/buildkit/scripts/new-project.sh [--repo <owner>/<repo>] [Name] [Lib...]
+```
+
+`Name` defaults to the folder name and the library list to `Core`. The script:
+
+1. runs `generate_project`;
+2. writes a git-ignored `CMakeUserPresets.json` with the presets `dev` and
+   `dev-release`, which point `BUILDKIT_DIR` at the buildkit it was started from;
+3. writes `.vscode/` files: Ctrl+Shift+B builds, F5 builds and runs `<first Lib>_Console`;
+4. configures (this generates `libraries/<Lib>/` and `applications/<Lib>/`),
+   builds, runs the tests and starts the console app.
+
+With `--repo` the product is public and also gets the community files (see
+`REPOSITORY` above; the licence holder is `git config user.name`).
+
+Existing files are kept. It needs `cmake`, `ninja` and `g++`, and refuses to run
+inside the buildkit checkout.
 
 ## Checklist for a library
 
