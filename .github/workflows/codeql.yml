@@ -3,7 +3,7 @@
 # Caller example:
 #   jobs:
 #     codeql:
-#       uses: medaminben/buildkit/.github/workflows/codeql.yml@v2.0.0
+#       uses: medaminben/buildkit/.github/workflows/codeql.yml@v2.0.1
 #       permissions:
 #         security-events: write
 #         actions: read

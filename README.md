@@ -93,7 +93,7 @@ The loader finds buildkit in this order:
 1. `BUILDKIT_DIR` (cache entry or environment variable) with a `cmake/Buildkit.cmake` inside.
    A wrong path is a fatal error that names it.
 2. A sibling checkout `${CMAKE_SOURCE_DIR}/../buildkit`.
-3. A git fetch of `BUILDKIT_REPOSITORY` at `BUILDKIT_TAG` (default `v2.0.0`; a tag or a
+3. A git fetch of `BUILDKIT_REPOSITORY` at `BUILDKIT_TAG` (default `v2.0.1`; a tag or a
    branch name, not a commit SHA) into `<binary dir>/_buildkit/src`, with the tag stamped in
    `<binary dir>/_buildkit/tag`. Set `BUILDKIT_TAG` before the include to pin another tag or branch.
 
