@@ -21,10 +21,15 @@
 #   works; such templates read lib_ROOT_NAME and lib_ROOT_NAME_UPPER.
 #
 # generate_project(NAME <Name> DESTINATION <dir> [LIBRARIES <Lib>...]
+#                  [REPOSITORY <owner>/<repo> [COPYRIGHT_HOLDER <text>]]
 #                  [TEMPLATE_LOCATION <dir>])
 #   Writes <dir>/CMakeLists.txt, CMakePresets.json and .gitignore from
 #   template/project/ and copies loader/buildkit.cmake to
 #   <dir>/cmake/buildkit.cmake (files that exist are kept).
+#   REPOSITORY marks a public product on GitHub: template/project/community/
+#   adds LICENSE (MIT, COPYRIGHT_HOLDER, default <owner>), CONTRIBUTING.md,
+#   CODE_OF_CONDUCT.md, SECURITY.md and the issue and pull request templates.
+#   Without it (private and local products) none of these are written.
 #
 # Templates are configured with ${var} substitution; ${VAR_MARKER_START}x${VAR_MARKER_END}
 # writes a literal ${x} into the generated file.
@@ -202,7 +207,8 @@ function(generate_library)
 endfunction()
 
 function(generate_project)
-    cmake_parse_arguments(PARSE_ARGV 0 prj "" "NAME;DESTINATION;TEMPLATE_LOCATION" "LIBRARIES")
+    cmake_parse_arguments(PARSE_ARGV 0 prj ""
+        "NAME;DESTINATION;TEMPLATE_LOCATION;REPOSITORY;COPYRIGHT_HOLDER" "LIBRARIES")
     if(prj_UNPARSED_ARGUMENTS)
         message(FATAL_ERROR "generate_project: unknown arguments: ${prj_UNPARSED_ARGUMENTS}")
     endif()
@@ -211,6 +217,12 @@ function(generate_project)
     endif()
     if(NOT prj_NAME MATCHES "^[A-Za-z][A-Za-z0-9_]*$")
         message(FATAL_ERROR "generate_project: NAME '${prj_NAME}' must be a C identifier")
+    endif()
+    if(prj_REPOSITORY AND NOT prj_REPOSITORY MATCHES "^([A-Za-z0-9-]+)/[A-Za-z0-9._-]+$")
+        message(FATAL_ERROR "generate_project: REPOSITORY '${prj_REPOSITORY}' must be <owner>/<repo>")
+    endif()
+    if(prj_COPYRIGHT_HOLDER AND NOT prj_REPOSITORY)
+        message(FATAL_ERROR "generate_project: COPYRIGHT_HOLDER needs REPOSITORY")
     endif()
     if(NOT prj_TEMPLATE_LOCATION)
         get_property(prj_TEMPLATE_LOCATION GLOBAL PROPERTY BUILDKIT_TEMPLATE_DIR)
@@ -241,6 +253,27 @@ function(generate_project)
         get_property(loader_file GLOBAL PROPERTY BUILDKIT_LOADER_FILE)
         configure_file("${loader_file}"
                        "${prj_DESTINATION}/cmake/buildkit.cmake" COPYONLY)
+    endif()
+
+    # Community files of a public product (template/project/community/**.in).
+    if(prj_REPOSITORY)
+        set(project_REPOSITORY ${prj_REPOSITORY})
+        string(REGEX REPLACE "/.*" "" project_OWNER "${prj_REPOSITORY}")
+        set(project_HOLDER "${prj_COPYRIGHT_HOLDER}")
+        if(project_HOLDER STREQUAL "")
+            set(project_HOLDER "${project_OWNER}")
+        endif()
+        string(TIMESTAMP project_YEAR "%Y")
+        set(community "${prj_TEMPLATE_LOCATION}/project/community")
+        file(GLOB_RECURSE templates RELATIVE "${community}" "${community}/*.in")
+        foreach(src IN LISTS templates)
+            string(REGEX REPLACE "\\.in$" "" dst "${src}")
+            if(EXISTS "${prj_DESTINATION}/${dst}")
+                message(STATUS "generate_project: ${dst} already present")
+                continue()
+            endif()
+            configure_file("${community}/${src}" "${prj_DESTINATION}/${dst}" @ONLY)
+        endforeach()
     endif()
     message(STATUS "generate_project: ${prj_NAME} written to ${prj_DESTINATION}")
 endfunction()

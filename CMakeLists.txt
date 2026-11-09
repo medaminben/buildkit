@@ -143,6 +143,11 @@ buildkit_add_fixture_test(NAME layout_generate_legacy DIR layout/generate_legacy
     EXPECT_OUTPUT "LAYOUT_GENERATE_LEGACY_OK")
 buildkit_add_fixture_test(NAME layout_project DIR layout/project BUILD
     EXPECT_OUTPUT "LAYOUT_PROJECT_OK")
+buildkit_add_fixture_test(NAME layout_project_public DIR layout/project_public
+    EXPECT_OUTPUT "LAYOUT_PROJECT_PUBLIC_OK")
+buildkit_add_fixture_test(NAME layout_project_public_bad DIR layout/project_public
+    ARGS -DREPOSITORY=not-a-repo EXPECT_FAIL
+    EXPECT_OUTPUT "REPOSITORY 'not-a-repo' must be <owner>/<repo>")
 
 # Install the flat layout and consume it with find_package + Vision::Vision.
 add_test(NAME install_flat

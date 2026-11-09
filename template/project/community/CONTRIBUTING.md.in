@@ -1,0 +1,36 @@
+# Contributing to @project_NAME@
+
+Thanks for helping out. Bug reports, ideas and pull requests are all welcome.
+
+## Reporting bugs and asking for features
+
+Open an [issue](https://github.com/@project_REPOSITORY@/issues/new/choose) and pick the bug report
+or feature request form.
+
+Do not report security problems in a public issue. [SECURITY.md](SECURITY.md) explains how to report
+them privately.
+
+## Making a change
+
+1. Fork the repository and create a branch from `main`.
+2. Build and run the tests:
+
+   ```bash
+   cmake --preset debug
+   cmake --build --preset debug
+   ctest --preset debug
+   ```
+
+3. Add or update tests for what you change.
+4. Update the documentation when behaviour, build options or the public API change.
+5. Open a pull request against `main` and fill in the template.
+
+## Commits
+
+Conventional Commits: `<type>(optional-scope): <description>` with the types
+`feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`,
+`chore`, `revert`.
+
+## Code of conduct
+
+Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).

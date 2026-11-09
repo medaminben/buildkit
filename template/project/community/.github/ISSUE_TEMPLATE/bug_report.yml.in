@@ -1,0 +1,41 @@
+name: Bug report
+description: Something builds, runs or behaves wrong.
+labels: [bug]
+body:
+  - type: input
+    id: component
+    attributes:
+      label: Component
+      description: The app or library, or "build" for CMake and install problems.
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. cmake --preset debug
+        2. cmake --build --preset debug
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: '@project_NAME@ version or commit, OS, compiler, CMake.'
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Build output, test failures or a backtrace.
+      render: text

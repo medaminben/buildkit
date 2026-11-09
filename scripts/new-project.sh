@@ -2,12 +2,15 @@
 # Creates a runnable buildkit product in the current folder.
 #
 #   cd ~/Dokumente/dev/MyApp
-#   bash /path/to/buildkit/scripts/new-project.sh [Name] [Lib...]
+#   bash /path/to/buildkit/scripts/new-project.sh [--repo <owner>/<repo>] [Name] [Lib...]
 #
 # Name defaults to the folder name, the libraries to Core. The script writes
 # the project files, generates libraries/<Lib>/ and applications/<Lib>/,
 # builds, runs the tests and the console app, and sets up VS Code so that
 # F5 builds and runs <first Lib>_Console. Files that exist are kept.
+# --repo marks a public product on GitHub: it also gets LICENSE (MIT, holder
+# from git config user.name), CONTRIBUTING, CODE_OF_CONDUCT, SECURITY and the
+# issue and pull request templates. Leave it out for private and local ones.
 set -euo pipefail
 
 BUILDKIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -24,6 +27,24 @@ esac
 for tool in cmake ninja g++; do
     command -v "$tool" >/dev/null || die "$tool is missing (sudo apt install cmake ninja-build g++)"
 done
+
+REPO=""
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --repo) [[ $# -ge 2 ]] || die "--repo needs <owner>/<repo>"; REPO="$2"; shift 2 ;;
+        --repo=*) REPO="${1#--repo=}"; shift ;;
+        -*) die "unknown option $1" ;;
+        *) ARGS+=("$1"); shift ;;
+    esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+COMMUNITY_ARGS=""
+if [[ -n "$REPO" ]]; then
+    HOLDER="$(git config user.name 2>/dev/null || true)"
+    COMMUNITY_ARGS="REPOSITORY;$REPO"
+    [[ -z "$HOLDER" ]] || COMMUNITY_ARGS+=";COPYRIGHT_HOLDER;$HOLDER"
+fi
 
 NAME="${1:-$(basename "$PROJECT_DIR")}"
 shift || true
@@ -45,10 +66,10 @@ trap 'rm -rf "$gen_dir"' EXIT
 cat > "$gen_dir/gen.cmake" <<'EOF'
 cmake_minimum_required(VERSION 3.29)
 include(${BUILDKIT_DIR}/cmake/Buildkit.cmake)
-generate_project(NAME ${NAME} DESTINATION ${DEST} LIBRARIES ${LIBS})
+generate_project(NAME ${NAME} DESTINATION ${DEST} LIBRARIES ${LIBS} ${COMMUNITY})
 EOF
 cmake -DBUILDKIT_DIR="$BUILDKIT_DIR" -DDEST="$PROJECT_DIR" -DNAME="$NAME" \
-      "-DLIBS=$(IFS=';'; echo "${LIBS[*]}")" -P "$gen_dir/gen.cmake"
+      "-DLIBS=$(IFS=';'; echo "${LIBS[*]}")" "-DCOMMUNITY=$COMMUNITY_ARGS" -P "$gen_dir/gen.cmake"
 
 # 2. Local presets that know where buildkit is (git-ignored, machine specific)
 if [[ ! -f CMakeUserPresets.json ]]; then

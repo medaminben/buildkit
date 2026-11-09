@@ -15,6 +15,12 @@ foreach(f CMakeLists.txt CMakePresets.json .gitignore cmake/buildkit.cmake)
         message(FATAL_ERROR "generate_project did not write ${f}")
     endif()
 endforeach()
+# Without REPOSITORY the product is private or local: no community files.
+foreach(f LICENSE SECURITY.md CODE_OF_CONDUCT.md CONTRIBUTING.md .github)
+    if(EXISTS ${product}/${f})
+        message(FATAL_ERROR "generate_project wrote ${f} without REPOSITORY")
+    endif()
+endforeach()
 
 # The loader is a verbatim copy of the real one.
 file(READ ${BUILDKIT_DIR}/loader/buildkit.cmake real_loader)
