@@ -1,5 +1,22 @@
 # buildkit
 
+<p align="center">
+  <a href="https://github.com/medaminben/buildkit/actions/workflows/self-test.yml"><img alt="Self-test" src="https://github.com/medaminben/buildkit/actions/workflows/self-test.yml/badge.svg?branch=master"></a>
+  <a href="https://github.com/medaminben/buildkit/actions/workflows/new-project.yml"><img alt="New project" src="https://github.com/medaminben/buildkit/actions/workflows/new-project.yml/badge.svg?branch=master"></a>
+  <a href="https://github.com/medaminben/buildkit/tags"><img alt="version" src="https://img.shields.io/github/v/tag/medaminben/buildkit?label=version"></a>
+  <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C">
+  <img alt="CMake 3.29" src="https://img.shields.io/badge/CMake-3.29-064F8C">
+  <img alt="platform: Windows | Linux" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-555">
+  <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/github/license/medaminben/buildkit"></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#documentation">Docs</a> ·
+  <a href="docs/CI_CD.md">CI/CD</a> ·
+  <a href="https://github.com/medaminben/buildkit/tags">Versions</a>
+</p>
+
 A reusable CMake kit for C++20 products: one loader file, a handful of modules
 and reusable GitHub workflows. A product keeps its code; buildkit supplies the
 build helpers, the dependency rule, versioning from git tags, packaging, CI and
