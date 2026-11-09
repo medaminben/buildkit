@@ -1,8 +1,7 @@
 # buildkit
 
 <p align="center">
-  <a href="https://github.com/medaminben/buildkit/actions/workflows/self-test.yml"><img alt="Self-test" src="https://github.com/medaminben/buildkit/actions/workflows/self-test.yml/badge.svg?branch=master"></a>
-  <a href="https://github.com/medaminben/buildkit/actions/workflows/new-project.yml"><img alt="New project" src="https://github.com/medaminben/buildkit/actions/workflows/new-project.yml/badge.svg?branch=master"></a>
+  <a href="https://github.com/medaminben/buildkit/actions/workflows/self-test.yml"><img alt="Self-test" src="https://github.com/medaminben/buildkit/actions/workflows/self-test.yml/badge.svg?branch=main"></a>
   <a href="https://github.com/medaminben/buildkit/tags"><img alt="version" src="https://img.shields.io/github/v/tag/medaminben/buildkit?label=version"></a>
   <img alt="C++20" src="https://img.shields.io/badge/C%2B%2B-20-00599C">
   <img alt="CMake 3.29" src="https://img.shields.io/badge/CMake-3.29-064F8C">
