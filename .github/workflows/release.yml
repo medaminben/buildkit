@@ -6,7 +6,7 @@
 #       types: [closed]
 #   jobs:
 #     release:
-#       uses: medaminben/buildkit/.github/workflows/release.yml@v2.0.0
+#       uses: medaminben/buildkit/.github/workflows/release.yml@v2.0.1
 #       permissions:
 #         contents: write
 #         actions: write
@@ -60,7 +60,7 @@ on:
       buildkit-ref:
         description: "Tag, branch or SHA of buildkit"
         type: string
-        default: "v2.0.0"
+        default: "v2.0.1"
 
 permissions:
   contents: write

@@ -1,7 +1,7 @@
 # CI / CD
 
 buildkit ships three reusable workflows. A product calls them from short
-workflow files and pins them to a buildkit tag, for example `@v2.0.0`. Each
+workflow files and pins them to a buildkit tag, for example `@v2.0.1`. Each
 workflow header in `.github/workflows/` is the reference for its inputs.
 
 ## `ci.yml`
@@ -12,7 +12,7 @@ Jobs: `lint` (clang-format, CMake style, commitlint on PR commits), `build`
 
 `buildkit-ref` is empty by default. Then `build`, `analysis` and `codeql.yml` do not export
 `BUILDKIT_DIR`: the product's loader pin (`BUILDKIT_TAG`) is honoured, as on a developer
-machine. `lint` and the clang-tidy config of `analysis` use buildkit `v2.0.0`. When `buildkit-ref` is set, all
+machine. `lint` and the clang-tidy config of `analysis` use buildkit `v2.0.1`. When `buildkit-ref` is set, all
 jobs check buildkit out at that ref into `.buildkit` and `build`, `analysis` and CodeQL export
 `BUILDKIT_DIR` for the configure, so a product needs no `BUILDKIT_TAG` default to build against
 an unreleased buildkit.
@@ -36,7 +36,7 @@ over `CMAKE_SOURCE_DIR` (or must exclude `.buildkit`).
 | `static-analysis` | `true` | clang-tidy and cppcheck |
 | `coverage` | `false` | Also run the `coverage` preset (gcc) and upload the report |
 | `sanitizers` | `false` | Also run the `asan` preset (ASan and UBSan, gcc) |
-| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, empty | Source of buildkit. Empty: the product's pin is used (lint and the clang-tidy config fall back to `v2.0.0`). Set: checked out for lint, build and analysis, and exported as `BUILDKIT_DIR` |
+| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, empty | Source of buildkit. Empty: the product's pin is used (lint and the clang-tidy config fall back to `v2.0.1`). Set: checked out for lint, build and analysis, and exported as `BUILDKIT_DIR` |
 
 Precedence of the lint switches: `lint: false` wins and disables everything, whatever
 `lint-format`, `lint-cmake` and `lint-commits` say. With `lint: true` each single input
@@ -63,7 +63,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   ci:
-    uses: medaminben/buildkit/.github/workflows/ci.yml@v2.0.0
+    uses: medaminben/buildkit/.github/workflows/ci.yml@v2.0.1
     permissions:
       contents: read
     with:
@@ -93,7 +93,7 @@ scanning enabled.
 ```yaml
 jobs:
   codeql:
-    uses: medaminben/buildkit/.github/workflows/codeql.yml@v2.0.0
+    uses: medaminben/buildkit/.github/workflows/codeql.yml@v2.0.1
     permissions:
       security-events: write
       actions: read
@@ -112,7 +112,7 @@ the installer workflow on the new tag.
 | Input | Default | Meaning |
 |-------|---------|---------|
 | `installer-workflow` | empty | Workflow file of the caller, started with `gh workflow run <file> --ref <tag>` |
-| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, `v2.0.0` | Source of `tools/release` |
+| `buildkit-repository`, `buildkit-ref` | `medaminben/buildkit`, `v2.0.1` | Source of `tools/release` |
 
 ```yaml
 # .github/workflows/release.yml in the product
@@ -122,7 +122,7 @@ on:
     types: [closed]
 jobs:
   release:
-    uses: medaminben/buildkit/.github/workflows/release.yml@v2.0.0
+    uses: medaminben/buildkit/.github/workflows/release.yml@v2.0.1
     permissions:
       contents: write
       actions: write

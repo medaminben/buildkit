@@ -122,7 +122,7 @@ Check what the old workflows did that the reusable one cannot do as a step, and 
 - Pre-release buildkit: set `buildkit-ref`; then `ci.yml` and `codeql.yml` check it out and
   set `BUILDKIT_DIR`, so the product needs no temporary `BUILDKIT_REPOSITORY`/`BUILDKIT_TAG`
   default. Leave `buildkit-ref` empty for a released buildkit: the product's loader pin
-  is honoured. Lint always needs buildkit's files and uses `buildkit-ref`, or `v2.0.0` if empty.
+  is honoured. Lint always needs buildkit's files and uses `buildkit-ref`, or `v2.0.1` if empty.
 - Lint: `lint: false` switches all three checks off; use `lint-format`, `lint-cmake` and
   `lint-commits` to pick single checks.
 
